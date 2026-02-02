@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ClawGuard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/vis-network@9.1.6/dist/vis-network.min.js"></script>
+  <link href="https://cdn.jsdelivr.net/npm/vis-network@9.1.6/dist/dist/vis-network.min.css" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        screens: {
+          'xs': '475px',
+          'sm': '640px',
+          'md': '768px',
+          'lg': '1024px',
+          'xl': '1280px',
+        },
+        extend: {
+          colors: {
+            slate: {
+              850: '#172033',
+              950: '#0a0f1a',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: #1e293b; }
+    ::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #64748b; }
+    
+    .activity-item { animation: fadeIn 0.2s ease-out; }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .pulse { animation: pulse 2s infinite; }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+    
+    .code-block {
+      font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', monospace;
+      font-size: 0.8rem;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+    
+    /* Heatmap styles */
+    .heatmap-cell {
+      transition: all 0.2s;
+    }
+    .heatmap-cell:hover {
+      transform: scale(1.1);
+      z-index: 10;
+    }
+    
+    /* Tab styles */
+    .tab-btn {
+      transition: all 0.2s;
+    }
+    .tab-btn.active {
+      background: rgba(59, 130, 246, 0.2);
+      border-color: rgb(59, 130, 246);
+      color: rgb(96, 165, 250);
+    }
+    
+    /* Bookmark star */
+    .bookmark-btn {
+      opacity: 0.3;
+      transition: all 0.2s;
+    }
+    .bookmark-btn:hover, .bookmark-btn.bookmarked {
+      opacity: 1;
+    }
+    .bookmark-btn.bookmarked {
+      color: #fbbf24;
+    }
+    
+    /* Dependency graph container */
+    #dependency-graph {
+      background: #0f172a;
+      border-radius: 0.75rem;
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen">
+  <div id="app" class="max-w-7xl mx-auto px-4 py-6">
+    
+    <!-- Header -->
+    <header class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+      <div>
+        <h1 class="text-xl font-bold text-white">ClawGuard</h1>
+        <p class="text-sm text-slate-400">Activity Monitor for OpenClaw/Clawdbot</p>
+      </div>
+      <div class="flex flex-wrap items-center gap-2 sm:gap-3 w-full sm:w-auto">
+        <div id="live-indicator" class="flex items-center gap-2 text-sm text-slate-400">
+          <span class="w-2 h-2 bg-green-500 rounded-full pulse"></span>
+          <span>Live</span>
+        </div>
+        
+        <div id="gateway-status" class="flex items-center gap-2 text-sm px-2 py-1 rounded bg-slate-800/50">
+          <span class="w-2 h-2 rounded-full" id="gateway-dot"></span>
+          <span id="gateway-text">Checking...</span>
+        </div>
+        
+        <button id="kill-switch-btn" class="bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors" title="Emergency stop">
+          Kill Switch
+        </button>
+        
+        <div class="relative">
+          <button id="menu-btn" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white px-3 py-2 rounded-lg text-sm transition-colors">
+            Menu
+          </button>
+          <div id="menu-dropdown" class="absolute right-0 mt-2 w-44 bg-slate-800 border border-slate-700 rounded-lg shadow-xl hidden z-50">
+            <button id="settings-btn" class="w-full text-left px-4 py-2 text-sm text-slate-300 hover:bg-slate-700 rounded-t-lg">Settings</button>
+            <div class="border-t border-slate-700"></div>
+            <a href="/api/export/json" class="block px-4 py-2 text-sm text-slate-300 hover:bg-slate-700">Export JSON</a>
+            <a href="/api/export/csv" class="block px-4 py-2 text-sm text-slate-300 hover:bg-slate-700">Export CSV</a>
+            <div class="border-t border-slate-700"></div>
+            <button id="restart-gateway-btn" class="w-full text-left px-4 py-2 text-sm text-slate-300 hover:bg-slate-700 rounded-b-lg">Restart Gateway</button>
+          </div>
+        </div>
+        
+        <select id="session-select" class="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 max-w-[180px]">
+          <option value="all">All Sessions</option>
+        </select>
+      </div>
+    </header>
+    
+    <!-- Tab Navigation -->
+    <div class="flex gap-2 mb-6 border-b border-slate-800 pb-4">
+      <button class="tab-btn active px-4 py-2 rounded-lg text-sm font-medium border border-transparent" data-tab="activity">
+        Activity
+      </button>
+      <button class="tab-btn px-4 py-2 rounded-lg text-sm font-medium border border-transparent hover:bg-slate-800" data-tab="analytics">
+        Analytics
+      </button>
+      <button class="tab-btn px-4 py-2 rounded-lg text-sm font-medium border border-transparent hover:bg-slate-800" data-tab="files">
+        Files
+      </button>
+      <button class="tab-btn px-4 py-2 rounded-lg text-sm font-medium border border-transparent hover:bg-slate-800 relative" data-tab="bookmarks">
+        Bookmarks
+        <span id="bookmark-count" class="absolute -top-1 -right-1 bg-blue-500 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center hidden">0</span>
+      </button>
+    </div>
+    
+    <!-- Tab Content: Activity -->
+    <div id="tab-activity" class="tab-content">
+      <!-- Stats Cards -->
+      <div id="stats-cards" class="grid grid-cols-3 md:grid-cols-6 gap-3 mb-6">
+        <div class="bg-slate-900 rounded-xl p-3 border border-slate-800">
+          <div class="text-xl font-bold text-white" id="stat-total">-</div>
+          <div class="text-xs text-slate-400">Total</div>
+        </div>
+        <div class="bg-slate-900 rounded-xl p-3 border border-slate-800">
+          <div class="text-xl font-bold text-yellow-400" id="stat-shell">-</div>
+          <div class="text-xs text-slate-400">Shell</div>
+        </div>
+        <div class="bg-slate-900 rounded-xl p-3 border border-slate-800">
+          <div class="text-xl font-bold text-blue-400" id="stat-file">-</div>
+          <div class="text-xs text-slate-400">File Ops</div>
+        </div>
+        <div class="bg-slate-900 rounded-xl p-3 border border-slate-800">
+          <div class="text-xl font-bold text-purple-400" id="stat-network">-</div>
+          <div class="text-xs text-slate-400">Network</div>
+        </div>
+        <div class="bg-slate-900 rounded-xl p-3 border border-slate-800">
+          <div class="text-xl font-bold text-orange-400" id="stat-high">-</div>
+          <div class="text-xs text-slate-400">High Risk</div>
+        </div>
+        <div class="bg-slate-900 rounded-xl p-3 border border-red-500/30">
+          <div class="text-xl font-bold text-red-500" id="stat-critical">-</div>
+          <div class="text-xs text-red-400">Critical</div>
+        </div>
+      </div>
+      
+      <!-- Timeline & Sequences -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+        <div class="lg:col-span-2 bg-slate-900 rounded-xl p-4 border border-slate-800">
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="font-medium text-white text-sm">Activity Timeline</h3>
+            <select id="timeline-range" class="bg-slate-800 border border-slate-700 rounded px-2 py-1 text-xs focus:outline-none">
+              <option value="24">24 hours</option>
+              <option value="48">48 hours</option>
+              <option value="168">7 days</option>
+            </select>
+          </div>
+          <div class="h-32">
+            <canvas id="timeline-chart"></canvas>
+          </div>
+        </div>
+        
+        <div class="bg-slate-900 rounded-xl p-4 border border-slate-800">
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="font-medium text-white text-sm">Suspicious Sequences</h3>
+            <span id="sequences-count" class="text-xs px-2 py-0.5 rounded-full bg-red-500/20 text-red-400">0</span>
+          </div>
+          <div id="suspicious-sequences" class="space-y-2 max-h-28 overflow-y-auto text-xs">
+            <div class="text-slate-500 text-center py-4">Analyzing...</div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Filters -->
+      <div class="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-3 mb-6">
+        <div class="flex-1 min-w-0 sm:min-w-64">
+          <input type="text" id="search-input" placeholder="Search activity..." 
+            class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-slate-500">
+        </div>
+        <div class="flex flex-wrap gap-2">
+          <select id="category-filter" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <option value="all">All Categories</option>
+            <option value="shell">Shell</option>
+            <option value="file">File</option>
+            <option value="network">Network</option>
+            <option value="browser">Browser</option>
+            <option value="message">Message</option>
+            <option value="system">System</option>
+            <option value="memory">Memory</option>
+          </select>
+          <select id="risk-filter" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <option value="all">All Risk Levels</option>
+            <option value="critical">Critical</option>
+            <option value="high">High</option>
+            <option value="medium">Medium</option>
+            <option value="low">Low</option>
+          </select>
+          <select id="tool-filter" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <option value="all">All Tools</option>
+          </select>
+          <input type="date" id="date-from" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+          <input type="date" id="date-to" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+          <button id="refresh-btn" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-lg text-sm font-medium transition-colors">
+            Refresh
+          </button>
+        </div>
+      </div>
+      
+      <!-- Activity Feed -->
+      <div class="bg-slate-900 rounded-xl border border-slate-800 overflow-hidden">
+        <div class="px-4 py-3 border-b border-slate-800 flex items-center justify-between">
+          <h2 class="font-medium text-white">Activity Feed</h2>
+          <span id="activity-count" class="text-sm text-slate-400">Loading...</span>
+        </div>
+        <div id="activity-feed" class="divide-y divide-slate-800 max-h-[50vh] sm:max-h-[calc(100vh-500px)] overflow-y-auto">
+          <div class="p-8 text-center text-slate-500">
+            <div class="animate-spin w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full mx-auto mb-3"></div>
+            Loading...
+          </div>
+        </div>
+        <div id="load-more-container" class="p-4 border-t border-slate-800 hidden">
+          <button id="load-more-btn" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-300 py-2 rounded-lg text-sm transition-colors">
+            Load More
+          </button>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Tab Content: Analytics -->
+    <div id="tab-analytics" class="tab-content hidden">
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        <!-- Tool Usage Breakdown -->
+        <div class="bg-slate-900 rounded-xl p-4 border border-slate-800">
+          <h3 class="font-medium text-white text-sm mb-4">Tool Usage Breakdown</h3>
+          <div class="h-64">
+            <canvas id="tool-usage-chart"></canvas>
+          </div>
+        </div>
+        
+        <!-- Category Distribution -->
+        <div class="bg-slate-900 rounded-xl p-4 border border-slate-800">
+          <h3 class="font-medium text-white text-sm mb-4">Category Distribution</h3>
+          <div class="h-64">
+            <canvas id="category-chart"></canvas>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Activity Heatmap -->
+      <div class="bg-slate-900 rounded-xl p-4 border border-slate-800 mb-6">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="font-medium text-white text-sm">Activity Heatmap</h3>
+        </div>
+        <div id="activity-heatmap" class="overflow-x-auto">
+          <div class="text-slate-500 text-center py-8">Loading heatmap...</div>
+        </div>
+      </div>
+      
+      <!-- Dependency Graph -->
+      <div class="bg-slate-900 rounded-xl p-4 border border-slate-800">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="font-medium text-white text-sm">Tool Dependency Graph</h3>
+          <div class="flex gap-2">
+            <button id="graph-refresh-btn" class="text-xs px-2 py-1 bg-slate-800 hover:bg-slate-700 rounded">Refresh</button>
+            <select id="graph-session-select" class="bg-slate-800 border border-slate-700 rounded px-2 py-1 text-xs">
+              <option value="recent">Recent Activity</option>
+            </select>
+          </div>
+        </div>
+        <div id="dependency-graph" class="h-96 rounded-lg"></div>
+        <p class="text-xs text-slate-500 mt-2">Shows how tools interact - edges indicate one tool's output was used by another</p>
+      </div>
+    </div>
+    
+    <!-- Tab Content: Files -->
+    <div id="tab-files" class="tab-content hidden">
+      <div class="bg-slate-900 rounded-xl p-4 border border-slate-800 mb-6">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="font-medium text-white text-sm">File Operations Tracker</h3>
+          <div class="flex gap-2">
+            <select id="file-op-filter" class="bg-slate-800 border border-slate-700 rounded px-2 py-1 text-xs">
+              <option value="all">All Operations</option>
+              <option value="write">Writes</option>
+              <option value="edit">Edits</option>
+              <option value="read">Reads</option>
+            </select>
+          </div>
+        </div>
+        <div id="file-list" class="space-y-2 max-h-[60vh] overflow-y-auto">
+          <div class="text-slate-500 text-center py-8">Loading file operations...</div>
+        </div>
+      </div>
+      
+      <!-- Most Accessed Files -->
+      <div class="bg-slate-900 rounded-xl p-4 border border-slate-800">
+        <h3 class="font-medium text-white text-sm mb-4">Most Accessed Files</h3>
+        <div id="top-files" class="space-y-2">
+          <div class="text-slate-500 text-center py-4">Loading...</div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Tab Content: Bookmarks -->
+    <div id="tab-bookmarks" class="tab-content hidden">
+      <div class="bg-slate-900 rounded-xl p-4 border border-slate-800">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="font-medium text-white text-sm">Bookmarked Activity</h3>
+          <button id="clear-bookmarks-btn" class="text-xs px-2 py-1 bg-red-600/20 hover:bg-red-600/30 text-red-400 rounded">
+            Clear All
+          </button>
+        </div>
+        <div id="bookmarks-list" class="space-y-2 max-h-[70vh] overflow-y-auto">
+          <div class="text-slate-500 text-center py-8">No bookmarks yet. Click the star on any activity to bookmark it.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Activity Detail Modal -->
+  <div id="detail-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden items-center justify-center z-50">
+    <div class="bg-slate-900 rounded-2xl border border-slate-700 max-w-2xl w-full mx-4 max-h-[80vh] overflow-hidden">
+      <div class="px-6 py-4 border-b border-slate-800 flex items-center justify-between">
+        <h3 class="font-semibold text-white" id="modal-title">Activity Details</h3>
+        <button id="modal-close" class="text-slate-400 hover:text-white transition-colors text-xl">&times;</button>
+      </div>
+      <div id="modal-content" class="p-6 overflow-y-auto max-h-[60vh]"></div>
+    </div>
+  </div>
+  
+  <!-- Kill Switch Modal -->
+  <div id="kill-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden items-center justify-center z-50">
+    <div class="bg-slate-900 rounded-2xl border border-red-500/50 max-w-md w-full mx-4 overflow-hidden">
+      <div class="px-6 py-4 border-b border-red-500/30 bg-red-500/10">
+        <h3 class="font-bold text-red-400 text-lg">Emergency Kill Switch</h3>
+      </div>
+      <div class="p-6">
+        <p class="text-slate-300 mb-4">This will <strong class="text-red-400">immediately terminate</strong> the OpenClaw gateway process.</p>
+        <ul class="text-sm text-slate-400 mb-6 space-y-1">
+          <li>All active sessions will be disconnected</li>
+          <li>Pending operations will be cancelled</li>
+          <li>The agent will stop responding until restarted</li>
+        </ul>
+        <div class="flex gap-3">
+          <button id="kill-confirm-btn" class="flex-1 bg-red-600 hover:bg-red-700 text-white py-2 rounded-lg font-medium transition-colors">
+            Yes, Kill It
+          </button>
+          <button id="kill-cancel-btn" class="flex-1 bg-slate-700 hover:bg-slate-600 text-white py-2 rounded-lg font-medium transition-colors">
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Settings Modal -->
+  <div id="settings-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden items-center justify-center z-50">
+    <div class="bg-slate-900 rounded-2xl border border-slate-700 max-w-lg w-full mx-4 max-h-[90vh] overflow-hidden">
+      <div class="px-6 py-4 border-b border-slate-800 flex items-center justify-between">
+        <div>
+          <h3 class="font-semibold text-white">Settings</h3>
+          <p class="text-xs text-slate-500" id="settings-config-path">config.json</p>
+        </div>
+        <button id="settings-modal-close" class="text-slate-400 hover:text-white transition-colors text-xl">&times;</button>
+      </div>
+      
+      <div class="p-6 space-y-6 overflow-y-auto max-h-[calc(90vh-140px)]">
+        
+        <!-- Server -->
+        <section>
+          <h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Server</h4>
+          <p class="text-xs text-slate-500 mb-3">Requires restart to apply changes</p>
+          <div class="space-y-3">
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs text-slate-400 mb-1">Port</label>
+                <input type="number" id="setting-port" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="3847">
+              </div>
+              <div>
+                <label class="block text-xs text-slate-400 mb-1">Sequence Window (min)</label>
+                <input type="number" id="setting-sequence-window" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="5">
+              </div>
+            </div>
+            <div>
+              <label class="block text-xs text-slate-400 mb-1">Sessions Path</label>
+              <input type="text" id="setting-sessions-path" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="auto-detected">
+            </div>
+          </div>
+        </section>
+        
+        <!-- Display -->
+        <section>
+          <h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Display</h4>
+          <div class="space-y-3">
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs text-slate-400 mb-1">Activity per Page</label>
+                <input type="number" id="setting-activity-limit" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="50">
+              </div>
+              <div>
+                <label class="block text-xs text-slate-400 mb-1">Default Timeline</label>
+                <select id="setting-timeline-range" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+                  <option value="24">24 hours</option>
+                  <option value="48">48 hours</option>
+                  <option value="168">7 days</option>
+                </select>
+              </div>
+            </div>
+            <label class="flex items-center gap-3 cursor-pointer">
+              <input type="checkbox" id="setting-enable-sequences" class="w-4 h-4 rounded bg-slate-800 border-slate-600">
+              <span class="text-sm text-white">Enable sequence detection</span>
+            </label>
+          </div>
+        </section>
+        
+        <!-- Alerts -->
+        <section>
+          <h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Webhook Alerts</h4>
+          <div class="space-y-3">
+            <label class="flex items-center gap-3 cursor-pointer">
+              <input type="checkbox" id="setting-alerts-enabled" class="w-4 h-4 rounded bg-slate-800 border-slate-600 text-blue-500 focus:ring-blue-500">
+              <span class="text-sm text-white">Enable webhook alerts</span>
+            </label>
+            <div>
+              <label class="block text-xs text-slate-400 mb-1">Webhook URL</label>
+              <input type="url" id="setting-webhook-url" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="https://discord.com/api/webhooks/...">
+            </div>
+            <div>
+              <label class="block text-xs text-slate-400 mb-1">Alert on risk levels</label>
+              <div class="flex gap-4">
+                <label class="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" id="setting-alert-critical" class="w-4 h-4 rounded bg-slate-800 border-slate-600">
+                  <span class="text-sm text-slate-300">Critical</span>
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" id="setting-alert-high" class="w-4 h-4 rounded bg-slate-800 border-slate-600">
+                  <span class="text-sm text-slate-300">High</span>
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" id="setting-alert-medium" class="w-4 h-4 rounded bg-slate-800 border-slate-600">
+                  <span class="text-sm text-slate-300">Medium</span>
+                </label>
+              </div>
+            </div>
+            <label class="flex items-center gap-3 cursor-pointer">
+              <input type="checkbox" id="setting-alert-sequences" class="w-4 h-4 rounded bg-slate-800 border-slate-600">
+              <span class="text-sm text-white">Alert on suspicious sequences</span>
+            </label>
+          </div>
+        </section>
+        
+        <!-- Log Streaming -->
+        <section>
+          <h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Log Streaming</h4>
+          <p class="text-xs text-slate-500 mb-3">Stream activity to an external endpoint in real-time</p>
+          <div class="space-y-3">
+            <label class="flex items-center gap-3 cursor-pointer">
+              <input type="checkbox" id="setting-streaming-enabled" class="w-4 h-4 rounded bg-slate-800 border-slate-600">
+              <span class="text-sm text-white">Enable streaming</span>
+            </label>
+            <div>
+              <label class="block text-xs text-slate-400 mb-1">Endpoint URL</label>
+              <input type="url" id="setting-streaming-endpoint" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="http://192.168.1.100:8080/logs">
+            </div>
+            <div>
+              <label class="block text-xs text-slate-400 mb-1">Authorization Header (optional)</label>
+              <input type="text" id="setting-streaming-auth" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Bearer your-token">
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs text-slate-400 mb-1">Batch Size</label>
+                <input type="number" id="setting-streaming-batch" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500" value="10">
+              </div>
+              <div>
+                <label class="block text-xs text-slate-400 mb-1">Flush Interval (ms)</label>
+                <input type="number" id="setting-streaming-interval" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-blue-500" value="5000">
+              </div>
+            </div>
+            <div class="flex gap-2">
+              <button id="test-streaming-btn" class="flex-1 bg-slate-700 hover:bg-slate-600 text-white py-1.5 rounded text-sm font-medium transition-colors">Test Endpoint</button>
+              <button id="flush-streaming-btn" class="flex-1 bg-slate-700 hover:bg-slate-600 text-white py-1.5 rounded text-sm font-medium transition-colors">Flush Now</button>
+            </div>
+            <div id="streaming-stats" class="text-xs text-slate-500 bg-slate-800/50 rounded p-2 hidden"></div>
+          </div>
+        </section>
+        
+        <!-- About -->
+        <section class="pt-4 border-t border-slate-800">
+          <div class="flex items-center justify-between text-xs text-slate-500">
+            <span>ClawGuard <span id="settings-version">v0.3.0</span></span>
+            <a href="https://github.com" class="text-blue-400 hover:underline">Documentation</a>
+          </div>
+        </section>
+      </div>
+      
+      <!-- Footer -->
+      <div class="px-6 py-4 border-t border-slate-800 flex items-center justify-between bg-slate-900">
+        <p id="settings-status" class="text-sm text-slate-400"></p>
+        <div class="flex gap-3">
+          <button id="settings-cancel-btn" class="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg text-sm font-medium transition-colors">Cancel</button>
+          <button id="settings-save-btn" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors">Save</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- File Detail Modal -->
+  <div id="file-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden items-center justify-center z-50">
+    <div class="bg-slate-900 rounded-2xl border border-slate-700 max-w-4xl w-full mx-4 max-h-[85vh] overflow-hidden">
+      <div class="px-6 py-4 border-b border-slate-800 flex items-center justify-between">
+        <h3 class="font-semibold text-white truncate" id="file-modal-title">File Details</h3>
+        <button id="file-modal-close" class="text-slate-400 hover:text-white transition-colors text-xl">&times;</button>
+      </div>
+      <div id="file-modal-content" class="p-6 overflow-y-auto max-h-[70vh]"></div>
+    </div>
+  </div>
+  
+  <!-- Toast -->
+  <div id="toast-container" class="fixed bottom-4 right-4 z-50 space-y-2"></div>
+  
+  <script src="/app.js"></script>
+</body>
+</html>

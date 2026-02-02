@@ -1,0 +1,43 @@
+{
+  "name": "clawguard",
+  "version": "0.3.0",
+  "description": "Activity monitor and security dashboard for Clawdbot/OpenClaw - real-time analytics, risk analysis, and kill switch",
+  "type": "module",
+  "main": "src/server.js",
+  "bin": {
+    "clawguard": "./bin/clawguard.js"
+  },
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "ws": "^8.16.0",
+    "chokidar": "^3.5.3"
+  },
+  "devDependencies": {},
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": [
+    "clawdbot",
+    "openclaw",
+    "ai-agent",
+    "security",
+    "monitoring",
+    "audit",
+    "dashboard",
+    "analytics"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jaydenbeard/clawguard.git"
+  },
+  "bugs": {
+    "url": "https://github.com/jaydenbeard/clawguard/issues"
+  },
+  "homepage": "https://github.com/jaydenbeard/clawguard#readme",
+  "author": "Jayden Beard",
+  "license": "MIT"
+}
