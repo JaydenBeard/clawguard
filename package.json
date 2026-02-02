@@ -1,22 +1,21 @@
 {
-  "name": "clawguard",
+  "name": "@jaydenbeard/clawguard",
   "version": "0.3.0",
   "description": "Activity monitor and security dashboard for OpenClaw/OpenClaw - real-time analytics, risk analysis, and kill switch",
   "type": "module",
   "main": "src/server.js",
   "bin": {
-    "clawguard": "./bin/clawguard.js"
+    "clawguard": "bin/clawguard.js"
   },
   "scripts": {
     "start": "node src/server.js",
     "dev": "node --watch src/server.js"
   },
   "dependencies": {
+    "chokidar": "^3.5.3",
     "express": "^4.18.2",
-    "ws": "^8.16.0",
-    "chokidar": "^3.5.3"
+    "ws": "^8.16.0"
   },
-  "devDependencies": {},
   "engines": {
     "node": ">=18.0.0"
   },

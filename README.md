@@ -8,7 +8,7 @@
 
 ```bash
 # Via npm (recommended)
-npm install -g clawguard
+npm install -g @jaydenbeard/clawguard
 clawguard start
 
 # Or clone manually
