@@ -1486,10 +1486,9 @@ async function sendAlert(activity, risk) {
   if (!alertConfig.enabled || !alertConfig.webhookUrl) return;
   
   // Check if we should alert on this
-  if (alertConfig.alertOnHighRisk && risk.level !== 'high') {
-    if (!alertConfig.alertOnCategories.includes(categorize(activity.tool))) {
-      return;
-    }
+  // Only alert if the risk level is in the configured onRiskLevels list (e.g. ['high', 'critical'])
+  if (!alertConfig.onRiskLevels.includes(risk.level)) {
+    return;
   }
   
   const payload = {
