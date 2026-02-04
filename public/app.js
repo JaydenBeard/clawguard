@@ -805,7 +805,7 @@ window.showFileDetail = async function(path) {
                 ${hasDiff ? `
                   <div class="mt-2">
                     <div class="text-xs text-slate-400 mb-1">Changes:</div>
-                    <pre class="code-block bg-slate-950 rounded p-2 text-xs overflow-x-auto">${formatDiff(op.result.details.diff)}</pre>
+                    <pre class="code-block bg-slate-950 rounded p-2 text-xs overflow-auto max-h-48">${formatDiff(op.result.details.diff)}</pre>
                   </div>
                 ` : ''}
                 ${op.arguments?.content ? `
@@ -1271,7 +1271,7 @@ window.showDetail = function(item) {
   const diffHtml = diff ? `
     <div>
       <div class="text-sm text-slate-400 mb-2">File Changes:</div>
-      <pre class="code-block bg-slate-950 rounded-lg p-4 overflow-x-auto border border-slate-800 text-xs">${formatDiff(diff)}</pre>
+      <pre class="code-block bg-slate-950 rounded-lg p-4 overflow-auto max-h-96 border border-slate-800 text-xs">${formatDiff(diff)}</pre>
     </div>
   ` : '';
   
@@ -1299,7 +1299,7 @@ window.showDetail = function(item) {
       
       <div>
         <div class="text-sm text-slate-400 mb-2">Arguments:</div>
-        <pre class="code-block bg-slate-950 rounded-lg p-4 overflow-x-auto border border-slate-800">${escapeHtml(JSON.stringify(item.arguments, null, 2))}</pre>
+        <pre class="code-block bg-slate-950 rounded-lg p-4 overflow-auto max-h-96 border border-slate-800">${escapeHtml(JSON.stringify(item.arguments, null, 2))}</pre>
       </div>
       
       ${diffHtml}
@@ -1307,7 +1307,7 @@ window.showDetail = function(item) {
       ${item.result ? `
         <div>
           <div class="text-sm text-slate-400 mb-2">Result ${item.result.isError ? '(Error)' : ''}:</div>
-          <pre class="code-block bg-slate-950 rounded-lg p-4 overflow-x-auto border border-slate-800 ${item.result.isError ? 'text-red-400' : ''}">${escapeHtml(truncateResult(item.result.content))}</pre>
+          <pre class="code-block bg-slate-950 rounded-lg p-4 overflow-auto max-h-96 border border-slate-800 ${item.result.isError ? 'text-red-400' : ''}">${escapeHtml(truncateResult(item.result.content))}</pre>
         </div>
       ` : ''}
     </div>
@@ -1328,14 +1328,16 @@ window.showSequenceDetail = function(seq) {
       
       <div>
         <div class="text-sm text-slate-400 mb-2">Sequence of Actions:</div>
-        <div class="space-y-2">
+        <div class="space-y-2 max-h-80 overflow-y-auto">
           ${seq.actions.map((action, i) => `
-            <div class="flex items-start gap-2">
-              <span class="text-slate-500 text-xs w-4">${i + 1}.</span>
-              <div class="flex-1">
-                <span class="text-white font-medium">${action.tool}</span>
-                <span class="text-slate-400 text-xs ml-2">${getTimeAgo(action.timestamp)}</span>
-                <div class="text-slate-400 text-xs mt-1 code-block">${escapeHtml(action.summary)}</div>
+            <div class="flex items-start gap-2 bg-slate-800 rounded-lg p-2">
+              <span class="text-slate-500 text-xs w-4 flex-shrink-0">${i + 1}.</span>
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2 flex-wrap">
+                  <span class="text-white font-medium">${action.tool}</span>
+                  <span class="text-slate-500 text-xs">${getTimeAgo(action.timestamp)}</span>
+                </div>
+                <pre class="text-slate-400 text-xs mt-1 code-block bg-slate-900 rounded p-2 overflow-auto max-h-32 whitespace-pre-wrap">${escapeHtml(action.summary)}</pre>
               </div>
             </div>
           `).join('')}
