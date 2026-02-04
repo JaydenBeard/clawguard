@@ -10,6 +10,9 @@ export function getSessionsDir() {
     join(homedir(), '.openclaw', 'agents', 'main', 'sessions'),
     join(homedir(), '.moltbot', 'agents', 'main', 'sessions'),
     join(homedir(), '.clawdbot', 'agents', 'main', 'sessions'),
+    join(homedir(), '.openclaw', 'sessions'),
+    join(homedir(), '.moltbot', 'sessions'),
+    join(homedir(), '.clawdbot', 'sessions'),
   ];
   for (const dir of candidates) {
     try {

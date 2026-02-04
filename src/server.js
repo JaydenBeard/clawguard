@@ -31,8 +31,10 @@ import { loadConfig, saveConfig, getConfigValue } from './lib/config.js';
 // GATEWAY CLI DETECTION (clawdbot/moltbot/openclaw)
 // ============================================
 const GATEWAY_NAMES = ['openclaw', 'moltbot', 'clawdbot'];
-// grep pattern for ps output — matches name-gateway, name gateway, node name, etc.
-const PS_GREP_PATTERN = GATEWAY_NAMES.join('|');
+// grep pattern — matches name-gateway, name.*gateway, and node.*name launch patterns
+const PS_GREP_PATTERN = GATEWAY_NAMES
+  .map(n => `${n}-gateway|${n}.*gateway|node.*${n}`)
+  .join('|');
 
 /**
  * Find running gateway process PID via ps + grep (more reliable than pgrep on macOS).
@@ -41,7 +43,7 @@ const PS_GREP_PATTERN = GATEWAY_NAMES.join('|');
 function findGatewayProcess() {
   try {
     const out = execSync(
-      `ps aux | grep -E "(${PS_GREP_PATTERN})" | grep -i gateway | grep -v grep | awk '{print $2}'`,
+      `ps aux | grep -Ei "(${PS_GREP_PATTERN})" | grep -v grep | awk '{print $2}'`,
       { encoding: 'utf-8', timeout: 5000 }
     ).trim();
     if (out) {
@@ -1099,7 +1101,7 @@ app.get('/api/gateway/status', (req, res) => {
 /**
  * KILL SWITCH - Stop gateway immediately (supports openclaw/moltbot/clawdbot)
  */
-app.post('/api/gateway/kill', (req, res) => {
+app.post('/api/gateway/kill', async (req, res) => {
   try {
     console.log('⚠️  KILL SWITCH ACTIVATED');
     
@@ -1123,11 +1125,10 @@ app.post('/api/gateway/kill', (req, res) => {
     const killResults = killGatewayProcesses();
     results.actions.push(...killResults);
     
-    // Verify it's actually stopped
-    setTimeout(() => {
-      const { pid: checkPid } = findGatewayProcess();
-      results.verified = !checkPid;
-    }, 1000);
+    // Verify it's actually stopped (wait for processes to die)
+    await new Promise(r => setTimeout(r, 1000));
+    const { pid: checkPid } = findGatewayProcess();
+    results.verified = !checkPid;
     
     results.message = 'Kill switch executed - OpenClaw gateway termination attempted';
     
