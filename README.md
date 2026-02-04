@@ -1,6 +1,6 @@
 # ClawGuard
 
-🛡️ Activity monitor and security dashboard for [OpenClaw](https://github.com/clawdbot/clawdbot). See exactly what your AI agent has done, with real-time analytics and emergency kill switch.
+Activity monitor and security dashboard for [OpenClaw](https://github.com/openclaw/openclaw). See exactly what your AI agent has done, with real-time analytics and emergency kill switch.
 
 ![ClawGuard Dashboard](https://raw.githubusercontent.com/JaydenBeard/clawguard/main/docs/screenshot.png)
 
@@ -23,9 +23,11 @@ After install, open http://localhost:3847
 ```bash
 clawguard           # Start dashboard (foreground)
 clawguard start     # Start in background
-clawguard stop      # Stop background process  
+clawguard stop      # Stop background process
 clawguard status    # Check if running
 clawguard restart   # Restart service
+clawguard update    # Check for and install updates
+clawguard version   # Show current version
 ```
 
 ## Features
@@ -44,30 +46,29 @@ clawguard restart   # Restart service
 - **LOW**: Standard file reads, web searches, memory operations
 
 ### Security Features
-- 🛑 **Kill Switch**: Emergency stop for runaway agents
-- 📥 **Export**: Full JSON/CSV export for external analysis
-- 🔔 **Webhook Alerts**: Discord/Slack notifications on high-risk activity
-- 📊 **Gateway Status**: Real-time monitoring of OpenClaw daemon
+- **Kill Switch**: Emergency stop for runaway agents
+- **Export**: Full JSON/CSV export for external analysis
+- **Webhook Alerts**: Discord, Slack, Telegram, or any webhook endpoint — triggered on high-risk activity
+- **Gateway Status**: Real-time monitoring of OpenClaw daemon
+- **Update Notifications**: Dashboard banner when a new version is available
 
-## Quick Start
-
-```bash
-cd ~/clawd/projects/clawguard
-npm install
-npm start
-# Opens at http://localhost:3847
-```
+### Multi-Gateway Support
+ClawGuard works with all versions of the gateway — `openclaw`, `moltbot`, and `clawdbot`. It auto-detects which CLI is installed and finds running gateway processes regardless of the binary name.
 
 ## Architecture
 
 ```
-ClawGuard reads from:
+ClawGuard reads from (auto-detected):
+~/.openclaw/agents/main/sessions/*.jsonl
+~/.moltbot/agents/main/sessions/*.jsonl
 ~/.clawdbot/agents/main/sessions/*.jsonl
 
 Dashboard components:
+├── bin/clawguard.js           # CLI entry point
 ├── src/server.js              # Express + WebSocket server
 ├── src/lib/parser.js          # JSONL session log parser
 ├── src/lib/risk-analyzer.js   # Comprehensive risk detection
+├── src/lib/config.js          # Configuration loader
 └── public/
     ├── index.html             # Dashboard UI
     └── app.js                 # Frontend logic
@@ -75,7 +76,7 @@ Dashboard components:
 
 ## Risk Detection
 
-ClawGuard analyzes every tool call for potential security concerns:
+ClawGuard analyses every tool call for potential security concerns:
 
 | Category | Examples | Risk Level |
 |----------|----------|------------|
@@ -97,12 +98,14 @@ ClawGuard analyzes every tool call for potential security concerns:
 | `/api/activities` | GET | List activities with filters |
 | `/api/sessions` | GET | List available sessions |
 | `/api/stats` | GET | Aggregate statistics |
-| `/api/gateway/status` | GET | OpenClaw daemon status |
+| `/api/gateway/status` | GET | Gateway daemon status |
 | `/api/gateway/kill` | POST | Emergency stop |
 | `/api/gateway/restart` | POST | Restart daemon |
 | `/api/export/json` | GET | Full JSON export |
 | `/api/export/csv` | GET | CSV export |
-| `/api/alerts/config` | GET/POST | Webhook configuration |
+| `/api/alerts/config` | GET/POST | Webhook alert configuration |
+| `/api/alerts/test` | POST | Send a test alert |
+| `/api/version` | GET | Version info and update check |
 
 ## Trust Model
 
@@ -113,21 +116,48 @@ For truly adversarial protection, you need:
 - Separate audit user (run ClawGuard as a user the agent can't access)
 - OS-level audit logs (macOS `log show` / audit facilities)
 
-See `SECURITY.md` for detailed threat model discussion.
+See `DESIGN.md` for detailed architecture discussion.
 
 ## Configuration
 
-Create `config.json` to customize:
+Create `config.json` in the ClawGuard directory to customise:
 
 ```json
 {
   "port": 3847,
-  "logPath": "~/.clawdbot/agents/main/sessions",
-  "webhookUrl": "https://discord.com/api/webhooks/...",
-  "alertOnHighRisk": true
+  "sessionsPath": "~/.openclaw/agents/main/sessions",
+  "alerts": {
+    "enabled": true,
+    "webhookUrl": "https://discord.com/api/webhooks/...",
+    "telegramChatId": "123456789",
+    "onRiskLevels": ["high", "critical"]
+  }
 }
+```
+
+### Alert Configuration
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `alerts.enabled` | boolean | Enable/disable webhook alerts |
+| `alerts.webhookUrl` | string | Webhook URL (Discord, Slack, Telegram, or generic) |
+| `alerts.telegramChatId` | string | Required for Telegram — your chat or group ID |
+| `alerts.onRiskLevels` | string[] | Risk levels to alert on (default: `["high", "critical"]`) |
+
+Telegram webhooks are auto-detected from the URL and formatted with the correct `chat_id`, `text`, and `parse_mode` fields.
+
+## Updating
+
+ClawGuard checks for updates automatically and shows a banner in the dashboard when a new version is available.
+
+```bash
+# Via CLI
+clawguard update
+
+# Or manually
+npm update -g @jaydenbeard/clawguard
 ```
 
 ## License
 
-MIT - Created by Jayden Beard
+MIT - Created by [Jayden Beard](https://github.com/JaydenBeard)
