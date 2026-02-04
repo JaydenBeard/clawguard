@@ -22,7 +22,7 @@ router.get('/status', (req, res) => {
           encoding: 'utf-8',
           timeout: 5000,
         });
-      } catch (e) {
+      } catch {
         cliStatus = 'CLI check failed';
       }
     } else {

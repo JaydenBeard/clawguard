@@ -2,7 +2,7 @@
  * ClawGuard Configuration Manager
  */
 
-import { readFileSync, writeFileSync, existsSync, copyFileSync } from 'fs';
+import { readFileSync, writeFileSync, existsSync } from 'fs';
 import { join, dirname } from 'path';
 import { homedir } from 'os';
 import { fileURLToPath } from 'url';
@@ -167,7 +167,8 @@ export function loadConfig() {
 export function saveConfig(config, targetPath = null) {
   const savePath = targetPath || config._configPath || CONFIG_PATHS[0];
 
-  // Remove internal fields
+  // Remove internal fields (destructured to exclude from saved output)
+  // eslint-disable-next-line no-unused-vars
   const { _configPath, _projectRoot, ...saveableConfig } = config;
 
   try {

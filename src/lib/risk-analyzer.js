@@ -81,7 +81,7 @@ export function categorize(toolName) {
 const CRITICAL_SHELL_PATTERNS = [
   { pattern: /\bsudo\s+/i, desc: 'Privileged command execution' },
   {
-    pattern: /\brm\s+(-rf?|--recursive)\s+[\/~]/i,
+    pattern: /\brm\s+(-rf?|--recursive)\s+[/~]/i,
     desc: 'Recursive deletion of system/home paths',
   },
   { pattern: /\bcurl\s+.*\|\s*(ba)?sh/i, desc: 'Remote code execution via pipe to shell' },
@@ -303,7 +303,7 @@ export function analyzeRisk(activity) {
 
   // Analyze based on tool type
   switch (category) {
-    case ToolCategory.SHELL:
+    case ToolCategory.SHELL: {
       const command = args?.command || '';
 
       // Check CRITICAL patterns first
@@ -334,8 +334,9 @@ export function analyzeRisk(activity) {
         }
       }
       break;
+    }
 
-    case ToolCategory.FILE:
+    case ToolCategory.FILE: {
       const path = args?.path || args?.file_path || '';
       const content = args?.content || '';
 
@@ -380,8 +381,9 @@ export function analyzeRisk(activity) {
         flags.push('File outside home directory');
       }
       break;
+    }
 
-    case ToolCategory.NETWORK:
+    case ToolCategory.NETWORK: {
       const url = args?.url || '';
 
       // Check for sensitive URLs
@@ -404,8 +406,9 @@ export function analyzeRisk(activity) {
         flags.push('HIGH: Direct IP address access');
       }
       break;
+    }
 
-    case ToolCategory.BROWSER:
+    case ToolCategory.BROWSER: {
       const targetUrl = args?.url || args?.targetUrl || '';
 
       // Check for sensitive URLs in browser
@@ -422,8 +425,9 @@ export function analyzeRisk(activity) {
         flags.push('Browser automation');
       }
       break;
+    }
 
-    case ToolCategory.MESSAGE:
+    case ToolCategory.MESSAGE: {
       const target = args?.target || args?.to || '';
       const action = args?.action || '';
 
@@ -445,6 +449,7 @@ export function analyzeRisk(activity) {
         flags.push(`Message action: ${action}`);
       }
       break;
+    }
 
     case ToolCategory.SYSTEM:
       if (tool === 'gateway') {

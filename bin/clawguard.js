@@ -58,7 +58,7 @@ switch (command) {
     }
     break;
 
-  case 'stop':
+  case 'stop': {
     const pid = getPid();
     if (pid) {
       process.kill(pid, 'SIGTERM');
@@ -67,8 +67,9 @@ switch (command) {
       console.log('ClawGuard is not running');
     }
     break;
+  }
 
-  case 'restart':
+  case 'restart': {
     const runningPid = getPid();
     if (runningPid) {
       process.kill(runningPid, 'SIGTERM');
@@ -84,6 +85,7 @@ switch (command) {
       console.log('🛡️  ClawGuard restarted (pid:', child.pid, ')');
     }, 500);
     break;
+  }
 
   case 'status':
     if (isRunning()) {
@@ -95,10 +97,11 @@ switch (command) {
 
   case 'version':
   case '-v':
-  case '--version':
+  case '--version': {
     const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'));
     console.log('ClawGuard v' + pkg.version);
     break;
+  }
 
   case 'update':
   case '--update': {
