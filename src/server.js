@@ -1648,9 +1648,47 @@ watcher.on('change', (path) => {
   }
 });
 
+// ============================================
+// UPDATE CHECK
+// ============================================
+
+const pkg = JSON.parse(readFileSync(join(__dirname, '..', 'package.json'), 'utf-8'));
+let updateCache = { latest: null, checkedAt: null };
+
+/**
+ * Check npm registry for latest version.
+ * Caches result for 1 hour to avoid hammering the registry.
+ */
+async function checkForUpdate() {
+  const ONE_HOUR = 60 * 60 * 1000;
+  if (updateCache.checkedAt && Date.now() - updateCache.checkedAt < ONE_HOUR) {
+    return updateCache;
+  }
+  try {
+    const res = await fetch('https://registry.npmjs.org/@jaydenbeard/clawguard/latest');
+    if (res.ok) {
+      const data = await res.json();
+      updateCache = {
+        current: pkg.version,
+        latest: data.version,
+        hasUpdate: data.version !== pkg.version,
+        checkedAt: Date.now(),
+      };
+    }
+  } catch {
+    // Offline or registry error — keep stale cache
+  }
+  return { current: pkg.version, ...updateCache };
+}
+
+app.get('/api/version', async (req, res) => {
+  const info = await checkForUpdate();
+  res.json(info);
+});
+
 // Start server
 server.listen(PORT, () => {
-  console.log(`\n🛡️  ClawGuard v0.3.0`);
+  console.log(`\n🛡️  ClawGuard v${pkg.version}`);
   console.log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`);
   console.log(`🌐 Dashboard:  http://localhost:${PORT}`);
   console.log(`📁 Sessions:   ${SESSIONS_DIR}`);

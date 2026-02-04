@@ -75,6 +75,7 @@ async function init() {
   setupEventListeners();
   setupWebSocket();
   checkGatewayStatus();
+  checkForUpdate();
   
   setInterval(checkGatewayStatus, 30000);
 }
@@ -1871,6 +1872,79 @@ function escapeHtml(text) {
   const div = document.createElement('div');
   div.textContent = text;
   return div.innerHTML;
+}
+
+// ============================================
+// UPDATE CHECK BANNER
+// ============================================
+
+async function checkForUpdate() {
+  try {
+    const res = await fetch('/api/version');
+    const data = await res.json();
+    
+    if (data.hasUpdate) {
+      showUpdateBanner(data.current, data.latest);
+    }
+  } catch {
+    // Silently fail — not critical
+  }
+}
+
+function showUpdateBanner(current, latest) {
+  // Don't show if already dismissed this version
+  const dismissed = localStorage.getItem('clawguard-update-dismissed');
+  if (dismissed === latest) return;
+  
+  const banner = document.createElement('div');
+  banner.id = 'update-banner';
+  banner.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 9999;
+    background: linear-gradient(135deg, #1e3a5f 0%, #0f2439 100%);
+    border-bottom: 1px solid #2563eb;
+    padding: 10px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    font-size: 14px;
+    color: #e2e8f0;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  `;
+  
+  banner.innerHTML = `
+    <span style="color: #60a5fa; font-weight: 600;">Update available</span>
+    <span>v${current} → v${latest}</span>
+    <code style="background: rgba(255,255,255,0.1); padding: 2px 8px; border-radius: 4px; font-size: 12px;">npm update -g @jaydenbeard/clawguard</code>
+    <a href="https://github.com/JaydenBeard/clawguard/releases/tag/v${latest}" 
+       target="_blank" 
+       style="color: #60a5fa; text-decoration: underline; font-size: 13px;">Release notes</a>
+    <button id="dismiss-update" style="
+      background: none;
+      border: 1px solid #475569;
+      color: #94a3b8;
+      padding: 2px 10px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 12px;
+      margin-left: 8px;
+    ">Dismiss</button>
+  `;
+  
+  document.body.prepend(banner);
+  
+  // Push content down
+  document.body.style.paddingTop = banner.offsetHeight + 'px';
+  
+  document.getElementById('dismiss-update').addEventListener('click', () => {
+    localStorage.setItem('clawguard-update-dismissed', latest);
+    banner.remove();
+    document.body.style.paddingTop = '0';
+  });
 }
 
 // Start

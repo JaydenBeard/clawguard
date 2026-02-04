@@ -100,11 +100,33 @@ switch (command) {
     console.log('ClawGuard v' + pkg.version);
     break;
 
+  case 'update':
+  case '--update': {
+    const updatePkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'));
+    console.log(`Current version: v${updatePkg.version}`);
+    console.log('Checking for updates...');
+    try {
+      const latest = execSync('npm view @jaydenbeard/clawguard version', { encoding: 'utf-8' }).trim();
+      if (latest !== updatePkg.version) {
+        console.log(`\nNew version available: v${latest} (current: v${updatePkg.version})`);
+        console.log('Updating...');
+        execSync('npm update -g @jaydenbeard/clawguard', { stdio: 'inherit' });
+        console.log(`\n✅ Updated to v${latest}. Restart ClawGuard to apply.`);
+      } else {
+        console.log(`\n✅ Already on the latest version (v${latest})`);
+      }
+    } catch (e) {
+      console.error('Failed to check for updates:', e.message);
+      process.exit(1);
+    }
+    break;
+  }
+
   case 'help':
   case '-h':
   case '--help':
     console.log(`
-🛡️  ClawGuard - Activity Monitor for Clawdbot
+🛡️  ClawGuard - Activity Monitor for OpenClaw
 
 Usage: clawguard [command]
 
@@ -114,6 +136,7 @@ Commands:
   stop          Stop background process
   restart       Restart service
   status        Check if running
+  update        Check for and install updates
   version       Show version
   help          Show this help
 
