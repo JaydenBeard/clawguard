@@ -32,8 +32,8 @@ export function getSessionsDir() {
 export function listSessions(sessionsDir = getSessionsDir()) {
   try {
     const files = readdirSync(sessionsDir)
-      .filter(f => f.endsWith('.jsonl') && !f.includes('.deleted.'))
-      .map(f => {
+      .filter((f) => f.endsWith('.jsonl') && !f.includes('.deleted.'))
+      .map((f) => {
         const filePath = join(sessionsDir, f);
         const stats = statSync(filePath);
         return {
@@ -46,7 +46,7 @@ export function listSessions(sessionsDir = getSessionsDir()) {
         };
       })
       .sort((a, b) => b.modified - a.modified);
-    
+
     return files;
   } catch (error) {
     console.error('Error listing sessions:', error);
@@ -61,7 +61,7 @@ export function parseSession(filePath) {
   try {
     const content = readFileSync(filePath, 'utf-8');
     const lines = content.trim().split('\n');
-    
+
     const session = {
       id: null,
       metadata: null,
@@ -69,13 +69,13 @@ export function parseSession(filePath) {
       toolCalls: [],
       toolResults: [],
     };
-    
+
     for (const line of lines) {
       if (!line.trim()) continue;
-      
+
       try {
         const entry = JSON.parse(line);
-        
+
         if (entry.type === 'session') {
           session.id = entry.id;
           session.metadata = {
@@ -85,7 +85,7 @@ export function parseSession(filePath) {
           };
         } else if (entry.type === 'message') {
           session.messages.push(entry);
-          
+
           // Extract tool calls from assistant messages
           if (entry.message?.content && Array.isArray(entry.message.content)) {
             for (const item of entry.message.content) {
@@ -100,7 +100,7 @@ export function parseSession(filePath) {
               }
             }
           }
-          
+
           // Extract tool results
           if (entry.message?.role === 'toolResult') {
             session.toolResults.push({
@@ -118,7 +118,7 @@ export function parseSession(filePath) {
         continue;
       }
     }
-    
+
     return session;
   } catch (error) {
     console.error('Error parsing session:', error);
@@ -131,31 +131,33 @@ export function parseSession(filePath) {
  */
 export function extractActivity(session) {
   const activities = [];
-  
+
   // Create a map of tool results by their toolCallId
   const resultsMap = new Map();
   for (const result of session.toolResults) {
     resultsMap.set(result.toolCallId, result);
   }
-  
+
   // Match tool calls with their results
   for (const call of session.toolCalls) {
     const result = resultsMap.get(call.id);
-    
+
     activities.push({
       id: call.id,
       tool: call.name,
       arguments: call.arguments,
       timestamp: call.timestamp,
-      result: result ? {
-        content: summarizeResult(result.content),
-        isError: result.isError,
-        details: result.details,
-      } : null,
+      result: result
+        ? {
+            content: summarizeResult(result.content),
+            isError: result.isError,
+            details: result.details,
+          }
+        : null,
       sessionId: session.id,
     });
   }
-  
+
   return activities.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 }
 
@@ -164,19 +166,19 @@ export function extractActivity(session) {
  */
 function summarizeResult(content) {
   if (!content) return null;
-  
+
   if (typeof content === 'string') {
     return content.length > 500 ? content.substring(0, 500) + '...' : content;
   }
-  
+
   if (Array.isArray(content)) {
-    const textContent = content.find(c => c.type === 'text');
+    const textContent = content.find((c) => c.type === 'text');
     if (textContent?.text) {
       const text = textContent.text;
       return text.length > 500 ? text.substring(0, 500) + '...' : text;
     }
   }
-  
+
   return JSON.stringify(content).substring(0, 500);
 }
 
@@ -186,19 +188,17 @@ function summarizeResult(content) {
 export function getAllActivity(sessionsDir = getSessionsDir(), limit = 1000) {
   const sessions = listSessions(sessionsDir);
   const allActivity = [];
-  
+
   for (const sessionInfo of sessions) {
     const session = parseSession(sessionInfo.path);
     if (session) {
       const activity = extractActivity(session);
       allActivity.push(...activity);
     }
-    
+
     // Stop if we have enough
     if (allActivity.length >= limit) break;
   }
-  
-  return allActivity
-    .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
-    .slice(0, limit);
+
+  return allActivity.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)).slice(0, limit);
 }

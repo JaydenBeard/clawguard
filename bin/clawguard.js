@@ -38,13 +38,13 @@ switch (command) {
       console.log('ClawGuard is already running (pid:', getPid(), ')');
       process.exit(1);
     }
-    
+
     if (process.argv.includes('--background') || process.argv.includes('-b')) {
       // Background mode
       const child = spawn('node', [join(ROOT, 'src/server.js')], {
         detached: true,
         stdio: 'ignore',
-        cwd: ROOT
+        cwd: ROOT,
       });
       child.unref();
       console.log('🛡️  ClawGuard started in background (pid:', child.pid, ')');
@@ -52,7 +52,7 @@ switch (command) {
       // Foreground mode
       const child = spawn('node', [join(ROOT, 'src/server.js')], {
         stdio: 'inherit',
-        cwd: ROOT
+        cwd: ROOT,
       });
       child.on('exit', (code) => process.exit(code));
     }
@@ -78,7 +78,7 @@ switch (command) {
       const child = spawn('node', [join(ROOT, 'src/server.js')], {
         detached: true,
         stdio: 'ignore',
-        cwd: ROOT
+        cwd: ROOT,
       });
       child.unref();
       console.log('🛡️  ClawGuard restarted (pid:', child.pid, ')');
@@ -106,7 +106,9 @@ switch (command) {
     console.log(`Current version: v${updatePkg.version}`);
     console.log('Checking for updates...');
     try {
-      const latest = execSync('npm view @jaydenbeard/clawguard version', { encoding: 'utf-8' }).trim();
+      const latest = execSync('npm view @jaydenbeard/clawguard version', {
+        encoding: 'utf-8',
+      }).trim();
       if (latest !== updatePkg.version) {
         console.log(`\nNew version available: v${latest} (current: v${updatePkg.version})`);
         console.log('Updating...');

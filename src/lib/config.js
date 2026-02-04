@@ -47,13 +47,13 @@ function detectSessionsPath() {
     join(homedir(), '.moltbot', 'sessions'),
     join(homedir(), '.clawdbot', 'sessions'),
   ];
-  
+
   for (const p of possiblePaths) {
     if (existsSync(p)) {
       return p;
     }
   }
-  
+
   // Default fallback
   return possiblePaths[0];
 }
@@ -114,10 +114,10 @@ function loadUserConfig() {
 function createDefaultConfig(targetPath = CONFIG_PATHS[0]) {
   try {
     const defaultConfig = loadDefaultConfig();
-    
+
     // Resolve auto sessions path
     defaultConfig.sessionsPath = detectSessionsPath();
-    
+
     writeFileSync(targetPath, JSON.stringify(defaultConfig, null, 2));
     console.log(`📋 Created config file: ${targetPath}`);
     return defaultConfig;
@@ -133,7 +133,7 @@ function createDefaultConfig(targetPath = CONFIG_PATHS[0]) {
 export function loadConfig() {
   const defaultConfig = loadDefaultConfig();
   const { config: userConfig, path: configPath } = loadUserConfig();
-  
+
   let config;
   if (userConfig) {
     // Merge user config with defaults
@@ -143,17 +143,17 @@ export function loadConfig() {
     console.log('📋 No config file found, creating default...');
     config = createDefaultConfig();
   }
-  
+
   // Resolve 'auto' sessions path
   if (config.sessionsPath === 'auto') {
     config.sessionsPath = detectSessionsPath();
   }
-  
+
   // Expand ~ in paths
   if (config.sessionsPath.startsWith('~')) {
     config.sessionsPath = config.sessionsPath.replace('~', homedir());
   }
-  
+
   return {
     ...config,
     _configPath: configPath || CONFIG_PATHS[0],
@@ -166,10 +166,10 @@ export function loadConfig() {
  */
 export function saveConfig(config, targetPath = null) {
   const savePath = targetPath || config._configPath || CONFIG_PATHS[0];
-  
+
   // Remove internal fields
   const { _configPath, _projectRoot, ...saveableConfig } = config;
-  
+
   try {
     writeFileSync(savePath, JSON.stringify(saveableConfig, null, 2));
     console.log(`📋 Saved config to: ${savePath}`);
@@ -186,7 +186,7 @@ export function saveConfig(config, targetPath = null) {
 export function getConfigValue(config, path, defaultValue = null) {
   const parts = path.split('.');
   let value = config;
-  
+
   for (const part of parts) {
     if (value && typeof value === 'object' && part in value) {
       value = value[part];
@@ -194,6 +194,6 @@ export function getConfigValue(config, path, defaultValue = null) {
       return defaultValue;
     }
   }
-  
+
   return value;
 }
