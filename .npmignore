@@ -11,3 +11,6 @@ DESIGN.md
 CHANGELOG.md
 install.sh
 config.json
+REFACTOR.md
+src/server-old.js
+eslint.config.js

@@ -32,3 +32,27 @@ jobs:
 
       - name: Format check
         run: npm run format:check
+
+      - name: Start ClawGuard (test port)
+        run: |
+          PORT=13847 node src/server.js &
+          echo $! > /tmp/clawguard.pid
+          for i in $(seq 1 15); do
+            if curl -s http://localhost:13847/api/version > /dev/null 2>&1; then
+              echo "Server ready after ${i}s"
+              break
+            fi
+            sleep 1
+          done
+
+      - name: Run tests
+        env:
+          CLAWGUARD_TEST_PORT: 13847
+        run: npm test
+
+      - name: Stop server
+        if: always()
+        run: |
+          if [ -f /tmp/clawguard.pid ]; then
+            kill $(cat /tmp/clawguard.pid) 2>/dev/null || true
+          fi

@@ -14,7 +14,7 @@
     "lint:fix": "eslint src/ bin/ --fix",
     "format": "prettier --write 'src/**/*.js' 'bin/**/*.js'",
     "format:check": "prettier --check 'src/**/*.js' 'bin/**/*.js'",
-    "check": "node --check src/server.js && node --check bin/clawguard.js && node --check src/lib/parser.js && node --check src/lib/config.js && node --check src/lib/risk-analyzer.js",
+    "check": "node --check src/server.js && node --check bin/clawguard.js && node --check src/lib/parser.js && node --check src/lib/config.js && node --check src/lib/risk-analyzer.js && node --check src/lib/state.js && node --check src/lib/gateway.js && node --check src/lib/alerts.js && node --check src/lib/streaming.js && node --check src/lib/sequence-helpers.js && node --check src/routes/activity.js && node --check src/routes/alerts.js && node --check src/routes/config.js && node --check src/routes/dump.js && node --check src/routes/exports.js && node --check src/routes/gateway.js && node --check src/routes/sessions.js && node --check src/routes/streaming.js && node --check src/routes/version.js",
     "test": "node --test tests/"
   },
   "dependencies": {
