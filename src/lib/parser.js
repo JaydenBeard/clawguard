@@ -113,7 +113,7 @@ export function parseSession(filePath) {
             });
           }
         }
-      } catch (parseError) {
+      } catch {
         // Skip malformed lines
         continue;
       }

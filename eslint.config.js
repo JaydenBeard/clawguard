@@ -22,6 +22,6 @@ export default [
     },
   },
   {
-    ignores: ['node_modules/', 'public/'],
+    ignores: ['node_modules/', 'public/', 'src/server-old.js'],
   },
 ];

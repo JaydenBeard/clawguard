@@ -1,6 +1,6 @@
 {
   "name": "@jaydenbeard/clawguard",
-  "version": "0.3.2",
+  "version": "0.4.0",
   "description": "Activity monitor and security dashboard for OpenClaw/OpenClaw - real-time analytics, risk analysis, and kill switch",
   "type": "module",
   "main": "src/server.js",
@@ -14,8 +14,8 @@
     "lint:fix": "eslint src/ bin/ --fix",
     "format": "prettier --write 'src/**/*.js' 'bin/**/*.js'",
     "format:check": "prettier --check 'src/**/*.js' 'bin/**/*.js'",
-    "check": "node --check src/server.js && node --check bin/clawguard.js && node --check src/lib/parser.js && node --check src/lib/config.js && node --check src/lib/risk-analyzer.js",
-    "test": "node --test tests/"
+    "check": "node scripts/check-syntax.js",
+    "test": "node --test tests/api.test.js"
   },
   "dependencies": {
     "chokidar": "^3.5.3",
