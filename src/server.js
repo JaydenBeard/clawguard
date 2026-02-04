@@ -27,6 +27,69 @@ import {
 
 import { loadConfig, saveConfig, getConfigValue } from './lib/config.js';
 
+// ============================================
+// GATEWAY CLI DETECTION (clawdbot/moltbot/openclaw)
+// ============================================
+const GATEWAY_NAMES = ['openclaw', 'moltbot', 'clawdbot'];
+// grep pattern — matches name-gateway, name.*gateway, and node.*name launch patterns
+const PS_GREP_PATTERN = GATEWAY_NAMES
+  .map(n => `${n}-gateway|${n}.*gateway|node.*${n}`)
+  .join('|');
+
+/**
+ * Find running gateway process PID via ps + grep (more reliable than pgrep on macOS).
+ * Returns { pid: string|null, match: string|null }
+ */
+function findGatewayProcess() {
+  try {
+    const out = execSync(
+      `ps aux | grep -Ei "(${PS_GREP_PATTERN})" | grep -v grep | awk '{print $2}'`,
+      { encoding: 'utf-8', timeout: 5000 }
+    ).trim();
+    if (out) {
+      return { pid: out.split('\n')[0], match: out };
+    }
+  } catch {
+    // no match
+  }
+  return { pid: null, match: null };
+}
+
+/**
+ * Kill all known gateway processes.
+ */
+function killGatewayProcesses() {
+  const results = [];
+  // Kill by each known name pattern
+  for (const name of GATEWAY_NAMES) {
+    for (const pattern of [`${name}-gateway`, `${name}.*gateway`, `node.*${name}`]) {
+      try {
+        execSync(`pkill -f "${pattern}" 2>/dev/null || true`, { encoding: 'utf-8' });
+        results.push({ pattern, success: true });
+      } catch (e) {
+        results.push({ pattern, success: false, error: e.message });
+      }
+    }
+  }
+  return results;
+}
+
+/**
+ * Detect which gateway CLI binary is available on this system.
+ * Returns the first match from GATEWAY_NAMES, or null if none found.
+ */
+function detectGatewayCli() {
+  for (const name of GATEWAY_NAMES) {
+    try {
+      execSync(`which ${name} 2>/dev/null`, { encoding: 'utf-8' });
+      return name;
+    } catch {
+      // not found, try next
+    }
+  }
+  return null;
+}
+
 // Load configuration
 const config = loadConfig();
 
@@ -956,7 +1019,7 @@ app.get('/api/export/json', (req, res) => {
     }));
     
     res.setHeader('Content-Type', 'application/json');
-    res.setHeader('Content-Disposition', 'attachment; filename=clawdbot-activity.json');
+    res.setHeader('Content-Disposition', 'attachment; filename=clawguard-activity.json');
     res.json({
       exportedAt: new Date().toISOString(),
       totalRecords: analyzed.length,
@@ -991,7 +1054,7 @@ app.get('/api/export/csv', (req, res) => {
     const csv = [headers.join(','), ...rows].join('\n');
     
     res.setHeader('Content-Type', 'text/csv');
-    res.setHeader('Content-Disposition', 'attachment; filename=clawdbot-activity.csv');
+    res.setHeader('Content-Disposition', 'attachment; filename=clawguard-activity.csv');
     res.send(csv);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -1003,35 +1066,30 @@ app.get('/api/export/csv', (req, res) => {
 // ============================================
 
 /**
- * Get Clawdbot gateway status
+ * Get gateway status (supports openclaw/moltbot/clawdbot)
  */
 app.get('/api/gateway/status', (req, res) => {
   try {
-    // Check if clawdbot gateway is running
-    let isRunning = false;
-    let pid = null;
+    const { pid } = findGatewayProcess();
+    const isRunning = !!pid;
     
-    try {
-      const result = execSync('pgrep -f "clawdbot.*gateway" || true', { encoding: 'utf-8' });
-      if (result.trim()) {
-        isRunning = true;
-        pid = result.trim().split('\n')[0];
-      }
-    } catch (e) {
-      // pgrep returns non-zero if no match
-    }
-    
-    // Also check via clawdbot CLI if available
+    // Check via whichever CLI is available
+    const cli = detectGatewayCli();
     let cliStatus = null;
-    try {
-      cliStatus = execSync('clawdbot gateway status 2>&1 || true', { encoding: 'utf-8', timeout: 5000 });
-    } catch (e) {
-      cliStatus = 'CLI check failed';
+    if (cli) {
+      try {
+        cliStatus = execSync(`${cli} gateway status 2>&1 || true`, { encoding: 'utf-8', timeout: 5000 });
+      } catch (e) {
+        cliStatus = 'CLI check failed';
+      }
+    } else {
+      cliStatus = 'No gateway CLI found';
     }
     
     res.json({
       isRunning,
       pid,
+      cli: cli || 'none',
       cliStatus: cliStatus?.trim(),
       timestamp: new Date().toISOString(),
     });
@@ -1041,9 +1099,9 @@ app.get('/api/gateway/status', (req, res) => {
 });
 
 /**
- * KILL SWITCH - Stop Clawdbot gateway immediately
+ * KILL SWITCH - Stop gateway immediately (supports openclaw/moltbot/clawdbot)
  */
-app.post('/api/gateway/kill', (req, res) => {
+app.post('/api/gateway/kill', async (req, res) => {
   try {
     console.log('⚠️  KILL SWITCH ACTIVATED');
     
@@ -1052,39 +1110,25 @@ app.post('/api/gateway/kill', (req, res) => {
       actions: [],
     };
     
-    // Method 1: Try clawdbot CLI
-    try {
-      execSync('clawdbot gateway stop 2>&1', { encoding: 'utf-8', timeout: 10000 });
-      results.actions.push({ method: 'clawdbot CLI', success: true });
-    } catch (e) {
-      results.actions.push({ method: 'clawdbot CLI', success: false, error: e.message });
-    }
-    
-    // Method 2: Kill by process name
-    try {
-      execSync('pkill -f "clawdbot.*gateway" || true', { encoding: 'utf-8' });
-      results.actions.push({ method: 'pkill gateway', success: true });
-    } catch (e) {
-      results.actions.push({ method: 'pkill gateway', success: false, error: e.message });
-    }
-    
-    // Method 3: Kill node processes running clawdbot
-    try {
-      execSync('pkill -f "node.*clawdbot" || true', { encoding: 'utf-8' });
-      results.actions.push({ method: 'pkill node clawdbot', success: true });
-    } catch (e) {
-      results.actions.push({ method: 'pkill node clawdbot', success: false, error: e.message });
-    }
-    
-    // Verify it's actually stopped
-    setTimeout(() => {
+    // Method 1: Try whichever CLI is available
+    const cli = detectGatewayCli();
+    if (cli) {
       try {
-        const check = execSync('pgrep -f "clawdbot.*gateway" || echo "stopped"', { encoding: 'utf-8' });
-        results.verified = check.trim() === 'stopped';
+        execSync(`${cli} gateway stop 2>&1`, { encoding: 'utf-8', timeout: 10000 });
+        results.actions.push({ method: `${cli} CLI`, success: true });
       } catch (e) {
-        results.verified = true; // pgrep returns error if no match
+        results.actions.push({ method: `${cli} CLI`, success: false, error: e.message });
       }
-    }, 1000);
+    }
+    
+    // Method 2: Kill all known gateway process patterns
+    const killResults = killGatewayProcesses();
+    results.actions.push(...killResults);
+    
+    // Verify it's actually stopped (wait for processes to die)
+    await new Promise(r => setTimeout(r, 1000));
+    const { pid: checkPid } = findGatewayProcess();
+    results.verified = !checkPid;
     
     results.message = 'Kill switch executed - OpenClaw gateway termination attempted';
     
@@ -1107,17 +1151,22 @@ app.post('/api/gateway/kill', (req, res) => {
 });
 
 /**
- * Restart Clawdbot gateway (for recovery after kill)
+ * Restart gateway (for recovery after kill, supports openclaw/moltbot/clawdbot)
  */
 app.post('/api/gateway/restart', (req, res) => {
   try {
     console.log('🔄 Gateway restart requested');
     
+    const cli = detectGatewayCli();
     let result;
-    try {
-      result = execSync('clawdbot gateway start 2>&1', { encoding: 'utf-8', timeout: 15000 });
-    } catch (e) {
-      result = e.message;
+    if (cli) {
+      try {
+        result = execSync(`${cli} gateway start 2>&1`, { encoding: 'utf-8', timeout: 15000 });
+      } catch (e) {
+        result = e.message;
+      }
+    } else {
+      result = 'No gateway CLI found (tried: ' + GATEWAY_NAMES.join(', ') + ')';
     }
     
     res.json({
