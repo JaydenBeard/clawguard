@@ -1146,13 +1146,17 @@ app.get('/api/alerts/config', (req, res) => {
  */
 app.post('/api/alerts/config', express.json(), (req, res) => {
   try {
-    const { enabled, webhookUrl, telegramChatId, alertOnHighRisk, alertOnCategories } = req.body;
+    const { enabled, webhookUrl, telegramChatId, alertOnHighRisk, alertOnCategories, onRiskLevels } = req.body;
     
     if (typeof enabled === 'boolean') alertConfig.enabled = enabled;
     if (webhookUrl !== undefined) alertConfig.webhookUrl = webhookUrl;
     if (telegramChatId !== undefined) alertConfig.telegramChatId = telegramChatId;
-    if (typeof alertOnHighRisk === 'boolean') alertConfig.alertOnHighRisk = alertOnHighRisk;
+    if (Array.isArray(onRiskLevels)) alertConfig.onRiskLevels = onRiskLevels;
     if (Array.isArray(alertOnCategories)) alertConfig.alertOnCategories = alertOnCategories;
+    // Legacy: convert alertOnHighRisk boolean to onRiskLevels if provided
+    if (typeof alertOnHighRisk === 'boolean' && !onRiskLevels) {
+      alertConfig.onRiskLevels = alertOnHighRisk ? ['high', 'critical'] : ['low', 'medium', 'high', 'critical'];
+    }
     
     res.json({ success: true, config: alertConfig });
   } catch (error) {
@@ -1502,11 +1506,9 @@ app.get('/api/dump/preview', (req, res) => {
 async function sendAlert(activity, risk) {
   if (!alertConfig.enabled || !alertConfig.webhookUrl) return;
   
-  // Check if we should alert on this
-  if (alertConfig.alertOnHighRisk && risk.level !== 'high' && risk.level !== 'critical') {
-    if (!alertConfig.alertOnCategories.includes(categorize(activity.tool))) {
-      return;
-    }
+  // Only alert if the risk level is in the configured onRiskLevels list (e.g. ['high', 'critical'])
+  if (!alertConfig.onRiskLevels.includes(risk.level)) {
+    return;
   }
   
   // Check for Telegram
