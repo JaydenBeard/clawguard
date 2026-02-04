@@ -1,6 +1,6 @@
 {
   "name": "@jaydenbeard/clawguard",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "Activity monitor and security dashboard for OpenClaw/OpenClaw - real-time analytics, risk analysis, and kill switch",
   "type": "module",
   "main": "src/server.js",
