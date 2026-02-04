@@ -3,10 +3,24 @@ import { join, basename } from 'path';
 import { homedir } from 'os';
 
 /**
- * Get the default Clawdbot sessions directory
+ * Get the default sessions directory (supports openclaw/moltbot/clawdbot)
  */
 export function getSessionsDir() {
-  return join(homedir(), '.clawdbot', 'agents', 'main', 'sessions');
+  const candidates = [
+    join(homedir(), '.openclaw', 'agents', 'main', 'sessions'),
+    join(homedir(), '.moltbot', 'agents', 'main', 'sessions'),
+    join(homedir(), '.clawdbot', 'agents', 'main', 'sessions'),
+  ];
+  for (const dir of candidates) {
+    try {
+      readdirSync(dir);
+      return dir;
+    } catch {
+      // not found, try next
+    }
+  }
+  // fallback to openclaw path
+  return candidates[0];
 }
 
 /**
