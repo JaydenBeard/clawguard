@@ -138,7 +138,7 @@
     </header>
     
     <!-- Tab Navigation -->
-    <div class="flex gap-2 mb-6 border-b border-slate-800 pb-4">
+    <div class="flex gap-2 mb-6 border-b border-slate-800 pb-4 overflow-x-auto">
       <button class="tab-btn active px-4 py-2 rounded-lg text-sm font-medium border border-transparent" data-tab="activity">
         Activity
       </button>
@@ -157,7 +157,7 @@
     <!-- Tab Content: Activity -->
     <div id="tab-activity" class="tab-content">
       <!-- Stats Cards -->
-      <div id="stats-cards" class="grid grid-cols-3 md:grid-cols-6 gap-3 mb-6">
+      <div id="stats-cards" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3 mb-6">
         <div class="bg-slate-900 rounded-xl p-3 border border-slate-800">
           <div class="text-xl font-bold text-white" id="stat-total">-</div>
           <div class="text-xs text-slate-400">Total</div>
@@ -358,7 +358,7 @@
   
   <!-- Activity Detail Modal -->
   <div id="detail-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm hidden items-center justify-center z-50">
-    <div class="bg-slate-900 rounded-2xl border border-slate-700 max-w-2xl w-full mx-4 max-h-[80vh] overflow-hidden">
+    <div class="bg-slate-900 rounded-2xl border border-slate-700 max-w-2xl w-full mx-2 sm:mx-4 max-h-[90vh] sm:max-h-[80vh] overflow-hidden">
       <div class="px-6 py-4 border-b border-slate-800 flex items-center justify-between">
         <h3 class="font-semibold text-white" id="modal-title">Activity Details</h3>
         <button id="modal-close" class="text-slate-400 hover:text-white transition-colors text-xl">&times;</button>
@@ -526,7 +526,7 @@
         <!-- About -->
         <section class="pt-4 border-t border-slate-800">
           <div class="flex items-center justify-between text-xs text-slate-500">
-            <span>ClawGuard <span id="settings-version">v0.3.0</span></span>
+            <span>ClawGuard <span id="settings-version">v...</span></span>
             <a href="https://github.com" class="text-blue-400 hover:underline">Documentation</a>
           </div>
         </section>

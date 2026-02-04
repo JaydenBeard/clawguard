@@ -9,7 +9,13 @@
   },
   "scripts": {
     "start": "node src/server.js",
-    "dev": "node --watch src/server.js"
+    "dev": "node --watch src/server.js",
+    "lint": "eslint src/ bin/",
+    "lint:fix": "eslint src/ bin/ --fix",
+    "format": "prettier --write 'src/**/*.js' 'bin/**/*.js'",
+    "format:check": "prettier --check 'src/**/*.js' 'bin/**/*.js'",
+    "check": "node --check src/server.js && node --check bin/clawguard.js && node --check src/lib/parser.js && node --check src/lib/config.js && node --check src/lib/risk-analyzer.js",
+    "test": "node --test tests/"
   },
   "dependencies": {
     "chokidar": "^3.5.3",
@@ -38,5 +44,11 @@
   },
   "homepage": "https://github.com/JaydenBeard/clawguard#readme",
   "author": "Jayden Beard",
-  "license": "MIT"
+  "license": "MIT",
+  "devDependencies": {
+    "@eslint/js": "^9.39.2",
+    "eslint": "^9.39.2",
+    "globals": "^17.3.0",
+    "prettier": "^3.8.1"
+  }
 }

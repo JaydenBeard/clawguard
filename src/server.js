@@ -94,7 +94,7 @@ function detectGatewayCli() {
 const config = loadConfig();
 
 // Alert configuration (from config file)
-let alertConfig = {
+const alertConfig = {
   enabled: config.alerts?.enabled || false,
   webhookUrl: config.alerts?.webhookUrl || null,
   telegramChatId: config.alerts?.telegramChatId || null,
@@ -105,7 +105,7 @@ let alertConfig = {
 };
 
 // Streaming configuration (external log sink)
-let streamingConfig = {
+const streamingConfig = {
   enabled: config.streaming?.enabled || false,
   endpoint: config.streaming?.endpoint || null,
   authHeader: config.streaming?.authHeader || null,
@@ -115,8 +115,8 @@ let streamingConfig = {
 
 // Streaming state
 let streamBuffer = [];
-let lastProcessedLines = {}; // Track last processed line per session file
-let streamingStats = {
+const lastProcessedLines = {}; // Track last processed line per session file
+const streamingStats = {
   totalSent: 0,
   totalFailed: 0,
   lastSentAt: null,

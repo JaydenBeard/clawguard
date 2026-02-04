@@ -1,0 +1,13 @@
+# Dev/docs files not needed in npm package
+docs/
+.github/
+tests/
+*.test.js
+.eslintrc*
+.prettierrc*
+.gitignore
+CONTRIBUTING.md
+DESIGN.md
+CHANGELOG.md
+install.sh
+config.json

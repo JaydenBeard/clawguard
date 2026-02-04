@@ -1,5 +1,5 @@
 /**
- * ClawGuard v0.3.0 - Activity Monitor Frontend
+ * ClawGuard - Activity Monitor Frontend
  * Features: Activity feed, Analytics, Files tracker, Bookmarks, Dependency graph
  */
 
@@ -19,6 +19,7 @@ let currentFilters = {
 let meta = {};
 let stats = {};
 let ws = null;
+let latestTimestamp = null;
 let timelineChart = null;
 let toolUsageChart = null;
 let categoryChart = null;
@@ -968,17 +969,52 @@ async function loadActivity(append = false) {
       currentActivity = [...currentActivity, ...activity];
     }
     
+    // Track latest timestamp for incremental updates
+    if (activity.length > 0 && !append) {
+      latestTimestamp = activity[0].timestamp;
+    }
+    
     for (const item of activity) {
       const el = createActivityElement(item);
       elements.activityFeed.appendChild(el);
     }
     
     if (currentActivity.length === 0) {
-      elements.activityFeed.innerHTML = `
-        <div class="p-8 text-center text-slate-500">
-          No activity found matching your filters.
-        </div>
-      `;
+      const hasFilters = currentFilters.category !== 'all' ||
+        currentFilters.risk !== 'all' ||
+        currentFilters.tool !== 'all' ||
+        currentFilters.search ||
+        currentFilters.session !== 'all' ||
+        currentFilters.dateFrom ||
+        currentFilters.dateTo;
+      
+      if (hasFilters) {
+        elements.activityFeed.innerHTML = `
+          <div class="p-8 text-center text-slate-500">
+            No activity found matching your filters.
+          </div>
+        `;
+      } else {
+        elements.activityFeed.innerHTML = `
+          <div class="p-12 text-center">
+            <div class="text-4xl mb-4">🛡️</div>
+            <h3 class="text-xl font-semibold text-white mb-2">Welcome to ClawGuard</h3>
+            <p class="text-slate-400 mb-4 max-w-md mx-auto">
+              No session activity found yet. ClawGuard monitors your OpenClaw agent's tool calls in real-time.
+            </p>
+            <div class="text-left max-w-sm mx-auto text-sm text-slate-500 space-y-2">
+              <p><span class="text-slate-300">Looking for sessions in:</span></p>
+              <code class="block bg-slate-800 rounded px-3 py-2 text-xs text-slate-400">~/.openclaw/agents/main/sessions/</code>
+              <p class="pt-2"><span class="text-slate-300">To get started:</span></p>
+              <ol class="list-decimal list-inside space-y-1 text-slate-400">
+                <li>Make sure <a href="https://github.com/openclaw/openclaw" target="_blank" class="text-blue-400 hover:underline">OpenClaw</a> is installed and running</li>
+                <li>Start a conversation with your agent</li>
+                <li>Activity will appear here automatically</li>
+              </ol>
+            </div>
+          </div>
+        `;
+      }
     }
     
     const total = data.total || currentActivity.length;
@@ -1545,7 +1581,7 @@ async function loadServerSettings() {
     document.getElementById('setting-port').value = config.port || 3847;
     document.getElementById('setting-sessions-path').value = config.sessionsPath || '';
     document.getElementById('settings-config-path').textContent = config.configPath || 'config.json';
-    document.getElementById('settings-version').textContent = `v${config.version || '0.3.0'}`;
+    // Version is set dynamically by checkForUpdate()
     
     document.getElementById('setting-alerts-enabled').checked = config.alerts?.enabled || false;
     document.getElementById('setting-webhook-url').value = config.alerts?.webhookUrl || '';
@@ -1778,9 +1814,8 @@ function setupWebSocket() {
     if (data.type === 'update') {
       if (!ws.reloadTimeout) {
         ws.reloadTimeout = setTimeout(() => {
-          loadActivity();
+          incrementalUpdate();
           loadStats();
-          loadSuspiciousSequences();
           ws.reloadTimeout = null;
         }, 500);
       }
@@ -1794,6 +1829,75 @@ function setupWebSocket() {
   };
   
   ws.onerror = (error) => console.error('WebSocket error:', error);
+}
+
+/**
+ * Fetch only new activity since latestTimestamp and prepend to the feed.
+ * Falls back to full reload if filters are active or no timestamp tracked.
+ */
+async function incrementalUpdate() {
+  // Fall back to full reload if filters are active
+  const hasFilters = currentFilters.category !== 'all' ||
+    currentFilters.risk !== 'all' ||
+    currentFilters.tool !== 'all' ||
+    currentFilters.search ||
+    currentFilters.session !== 'all' ||
+    currentFilters.dateFrom ||
+    currentFilters.dateTo;
+  
+  if (hasFilters || !latestTimestamp) {
+    loadActivity();
+    loadSuspiciousSequences();
+    return;
+  }
+  
+  try {
+    const params = new URLSearchParams({
+      limit: 50,
+      offset: 0,
+      dateFrom: latestTimestamp,
+    });
+    
+    const res = await fetch(`/api/activity?${params}`);
+    const data = await res.json();
+    const newItems = (data.activity || []).filter(
+      item => !currentActivity.some(existing => existing.id === item.id)
+    );
+    
+    if (newItems.length === 0) return;
+    
+    // Update latest timestamp
+    latestTimestamp = newItems[0].timestamp;
+    
+    // Prepend to state
+    currentActivity = [...newItems, ...currentActivity];
+    
+    // Prepend to DOM with animation
+    for (let i = newItems.length - 1; i >= 0; i--) {
+      const el = createActivityElement(newItems[i]);
+      el.style.opacity = '0';
+      el.style.transform = 'translateY(-10px)';
+      el.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+      
+      elements.activityFeed.prepend(el);
+      
+      // Trigger animation on next frame
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          el.style.opacity = '1';
+          el.style.transform = 'translateY(0)';
+        });
+      });
+    }
+    
+    // Update count
+    const total = (data.total || currentActivity.length);
+    elements.activityCount.textContent = `Showing ${currentActivity.length} of ${total}`;
+    
+  } catch (error) {
+    console.error('Incremental update failed, falling back to full reload:', error);
+    loadActivity();
+  }
 }
 
 // ============================================
@@ -1882,6 +1986,12 @@ async function checkForUpdate() {
   try {
     const res = await fetch('/api/version');
     const data = await res.json();
+    
+    // Update version display in settings
+    const versionEl = document.getElementById('settings-version');
+    if (versionEl && data.current) {
+      versionEl.textContent = `v${data.current}`;
+    }
     
     if (data.hasUpdate) {
       showUpdateBanner(data.current, data.latest);
