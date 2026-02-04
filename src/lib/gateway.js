@@ -31,21 +31,17 @@ export function findGatewayProcess() {
 }
 
 /**
- * Kill all known gateway processes.
+ * Kill all known gateway processes using a combined pattern.
  */
 export function killGatewayProcesses() {
   const results = [];
-  for (const name of GATEWAY_NAMES) {
-    for (const pattern of [`${name}-gateway`, `${name}.*gateway`, `node.*${name}`]) {
-      try {
-        execSync(`pkill -f "${pattern}" 2>/dev/null || true`, {
-          encoding: 'utf-8',
-        });
-        results.push({ pattern, success: true });
-      } catch (e) {
-        results.push({ pattern, success: false, error: e.message });
-      }
-    }
+  try {
+    execSync(`pkill -f "${PS_GREP_PATTERN}" 2>/dev/null || true`, {
+      encoding: 'utf-8',
+    });
+    results.push({ pattern: PS_GREP_PATTERN, success: true });
+  } catch (e) {
+    results.push({ pattern: PS_GREP_PATTERN, success: false, error: e.message });
   }
   return results;
 }

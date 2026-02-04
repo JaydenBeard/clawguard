@@ -95,7 +95,9 @@ export function getSummary(item) {
     case 'web_fetch':
       return args.url || '(url)';
     case 'message':
-      return `${args.action} to ${args.target || args.channel}`;
+      return `${args.action || '(action)'} to ${args.target || args.channel || '(target)'}`;
+    case 'web_search':
+      return args.query?.substring(0, 60) || '(query)';
     default:
       return JSON.stringify(args).substring(0, 60);
   }

@@ -16,7 +16,6 @@ export const alertConfig = {
   webhookUrl: config.alerts?.webhookUrl || null,
   telegramChatId: config.alerts?.telegramChatId || null,
   alertOnHighRisk: config.alerts?.onRiskLevels?.includes('high') ?? true,
-  alertOnCategories: ['shell', 'file'],
   onRiskLevels: config.alerts?.onRiskLevels || ['high', 'critical'],
   onSequences: config.alerts?.onSequences ?? true,
 };

@@ -1,3 +1,9 @@
+/**
+ * @deprecated This file is preserved for reference only.
+ * The server has been modularized — see src/server.js and src/routes/*.
+ * This file will be removed in a future version.
+ */
+
 import express from 'express';
 import { WebSocketServer } from 'ws';
 import { createServer } from 'http';

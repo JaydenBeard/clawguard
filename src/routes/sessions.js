@@ -1,3 +1,7 @@
+/**
+ * Sessions listing and detail routes.
+ */
+
 import { Router } from 'express';
 import { listSessions, parseSession, extractActivity } from '../lib/parser.js';
 import { analyzeRisk, categorize, getCategoryIcon } from '../lib/risk-analyzer.js';
@@ -31,12 +35,19 @@ router.get('/:id', (req, res) => {
       return res.status(404).json({ error: 'Session not found' });
     }
     const session = parseSession(sessionInfo.path);
+    if (!session) {
+      return res.status(404).json({ error: 'Session file could not be parsed' });
+    }
     const activity = extractActivity(session);
-    const analyzedActivity = activity.map((a) => ({
-      ...a,
-      risk: analyzeRisk(a),
-      icon: getCategoryIcon(categorize(a.tool)),
-    }));
+    const analyzedActivity = activity.map((a) => {
+      const category = categorize(a.tool);
+      return {
+        ...a,
+        risk: analyzeRisk(a),
+        category,
+        icon: getCategoryIcon(category),
+      };
+    });
     res.json({
       session: { ...sessionInfo, metadata: session?.metadata },
       activity: analyzedActivity,

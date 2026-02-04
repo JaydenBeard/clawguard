@@ -1,19 +1,26 @@
-import { Router } from 'express';
-import express from 'express';
+/**
+ * Session dump/export to external endpoints.
+ */
+
+import express, { Router } from 'express';
 import { listSessions, parseSession, extractActivity } from '../lib/parser.js';
 import { analyzeRisk, categorize } from '../lib/risk-analyzer.js';
 import { SESSIONS_DIR, streamingConfig } from '../lib/state.js';
+import { resolveEndpoint } from '../lib/validate.js';
 
 const router = Router();
 
 router.post('/session/:id', express.json(), async (req, res) => {
-  const endpoint = req.body.endpoint || streamingConfig.endpoint;
-  const authHeader = req.body.authHeader || streamingConfig.authHeader;
+  const endpoint = resolveEndpoint(req.body.endpoint, streamingConfig.endpoint);
   if (!endpoint) {
     return res.status(400).json({
-      error: 'No endpoint configured. Set streaming endpoint or provide one in request.',
+      error: req.body.endpoint
+        ? 'Invalid endpoint URL. Only external http/https URLs are allowed.'
+        : 'No endpoint configured. Set streaming endpoint or provide one in request.',
     });
   }
+  const authHeader = req.body.authHeader || streamingConfig.authHeader;
+
   try {
     const sessions = listSessions(SESSIONS_DIR);
     const sessionInfo = sessions.find((s) => s.id === req.params.id);
@@ -21,13 +28,16 @@ router.post('/session/:id', express.json(), async (req, res) => {
       return res.status(404).json({ error: 'Session not found' });
     }
     const session = parseSession(sessionInfo.path);
+    if (!session) {
+      return res.status(404).json({ error: 'Session file could not be parsed' });
+    }
     const activity = extractActivity(session);
     const analyzedActivity = activity.map((a) => ({
       ...a,
       risk: analyzeRisk(a),
       category: categorize(a.tool),
     }));
-    const headers = { 'Content-Type': 'application/json', 'User-Agent': 'ClawGuard/0.2.0' };
+    const headers = { 'Content-Type': 'application/json', 'User-Agent': 'ClawGuard/0.3.0' };
     if (authHeader) headers['Authorization'] = authHeader;
     const response = await fetch(endpoint, {
       method: 'POST',
@@ -62,16 +72,19 @@ router.post('/session/:id', express.json(), async (req, res) => {
 });
 
 router.post('/all', express.json(), async (req, res) => {
-  const endpoint = req.body.endpoint || streamingConfig.endpoint;
-  const authHeader = req.body.authHeader || streamingConfig.authHeader;
+  const endpoint = resolveEndpoint(req.body.endpoint, streamingConfig.endpoint);
   if (!endpoint) {
     return res.status(400).json({
-      error: 'No endpoint configured. Set streaming endpoint or provide one in request.',
+      error: req.body.endpoint
+        ? 'Invalid endpoint URL. Only external http/https URLs are allowed.'
+        : 'No endpoint configured. Set streaming endpoint or provide one in request.',
     });
   }
+  const authHeader = req.body.authHeader || streamingConfig.authHeader;
+
   try {
     const sessions = listSessions(SESSIONS_DIR);
-    const headers = { 'Content-Type': 'application/json', 'User-Agent': 'ClawGuard/0.2.0' };
+    const headers = { 'Content-Type': 'application/json', 'User-Agent': 'ClawGuard/0.3.0' };
     if (authHeader) headers['Authorization'] = authHeader;
     const results = {
       success: true,
@@ -84,7 +97,7 @@ router.post('/all', express.json(), async (req, res) => {
     for (const sessionInfo of sessions) {
       try {
         const session = parseSession(sessionInfo.path);
-        const activity = extractActivity(session);
+        const activity = session ? extractActivity(session) : [];
         const analyzedActivity = activity.map((a) => ({
           ...a,
           risk: analyzeRisk(a),
@@ -132,7 +145,7 @@ router.get('/preview', (req, res) => {
     let totalActivity = 0;
     const sessionPreviews = sessions.map((sessionInfo) => {
       const session = parseSession(sessionInfo.path);
-      const activity = extractActivity(session);
+      const activity = session ? extractActivity(session) : [];
       totalActivity += activity.length;
       return {
         id: sessionInfo.id,

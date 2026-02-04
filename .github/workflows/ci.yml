@@ -37,13 +37,22 @@ jobs:
         run: |
           PORT=13847 node src/server.js &
           echo $! > /tmp/clawguard.pid
+          SERVER_READY=false
           for i in $(seq 1 15); do
             if curl -s http://localhost:13847/api/version > /dev/null 2>&1; then
               echo "Server ready after ${i}s"
+              SERVER_READY=true
               break
             fi
             sleep 1
           done
+          if [ "$SERVER_READY" != "true" ]; then
+            echo "::error::Server failed to start within 15s"
+            if [ -f /tmp/clawguard.pid ]; then
+              kill $(cat /tmp/clawguard.pid) 2>/dev/null || true
+            fi
+            exit 1
+          fi
 
       - name: Run tests
         env:

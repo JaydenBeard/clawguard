@@ -1,7 +1,23 @@
+/**
+ * JSON and CSV export routes.
+ */
+
 import { Router } from 'express';
 import { getAllActivity } from '../lib/parser.js';
 import { analyzeRisk, categorize } from '../lib/risk-analyzer.js';
 import { SESSIONS_DIR } from '../lib/state.js';
+
+/**
+ * Escape a value for safe CSV output.
+ * Handles null/undefined, objects, newlines, and double quotes.
+ */
+function escapeCsv(value) {
+  if (value == null) return '';
+  const str = typeof value === 'object' ? JSON.stringify(value) : String(value);
+  // Replace newlines with spaces, escape double quotes by doubling them
+  const escaped = str.replace(/\r?\n|\r/g, ' ').replace(/"/g, '""');
+  return `"${escaped}"`;
+}
 
 const router = Router();
 
@@ -40,16 +56,14 @@ router.get('/csv', (req, res) => {
     const rows = activity.map((a) => {
       const risk = analyzeRisk(a);
       return [
-        a.timestamp,
-        a.tool,
-        categorize(a.tool),
-        risk.level,
-        risk.flags.join('; '),
-        JSON.stringify(a.arguments).replace(/"/g, '""'),
-        a.sessionId,
-      ]
-        .map((v) => '"' + v + '"')
-        .join(',');
+        escapeCsv(a.timestamp),
+        escapeCsv(a.tool),
+        escapeCsv(categorize(a.tool)),
+        escapeCsv(risk.level),
+        escapeCsv(risk.flags.join('; ')),
+        escapeCsv(a.arguments),
+        escapeCsv(a.sessionId),
+      ].join(',');
     });
     const csv = [headers.join(','), ...rows].join('\n');
     res.setHeader('Content-Type', 'text/csv');

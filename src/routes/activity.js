@@ -38,12 +38,15 @@ router.get('/activity', (req, res) => {
     const dateTo = req.query.dateTo;
 
     let activity = getAllActivity(SESSIONS_DIR, 5000);
-    activity = activity.map((a) => ({
-      ...a,
-      risk: analyzeRisk(a),
-      category: categorize(a.tool),
-      icon: getCategoryIcon(categorize(a.tool)),
-    }));
+    activity = activity.map((a) => {
+      const category = categorize(a.tool);
+      return {
+        ...a,
+        risk: analyzeRisk(a),
+        category,
+        icon: getCategoryIcon(category),
+      };
+    });
 
     if (category && category !== 'all') activity = activity.filter((a) => a.category === category);
     if (riskLevel && riskLevel !== 'all')

@@ -1,13 +1,17 @@
-import { Router } from 'express';
-import express from 'express';
+/**
+ * Configuration read/write route.
+ */
+
+import express, { Router } from 'express';
 import { saveConfig } from '../lib/config.js';
 import { config, alertConfig } from '../lib/state.js';
+import { pkg } from '../lib/pkg.js';
 
 const router = Router();
 
 router.get('/', (req, res) => {
   res.json({
-    version: '0.3.0',
+    version: pkg.version,
     port: config.port,
     sessionsPath: config.sessionsPath,
     configPath: config._configPath,
@@ -25,8 +29,20 @@ router.get('/', (req, res) => {
 router.post('/', express.json(), (req, res) => {
   try {
     const updates = req.body;
-    if (updates.port !== undefined) config.port = updates.port;
-    if (updates.sessionsPath !== undefined) config.sessionsPath = updates.sessionsPath;
+
+    if (updates.port !== undefined) {
+      const port = Number(updates.port);
+      if (isNaN(port) || port < 1 || port > 65535) {
+        return res.status(400).json({ success: false, message: 'Invalid port number (1-65535)' });
+      }
+      config.port = port;
+    }
+    if (updates.sessionsPath !== undefined) {
+      if (typeof updates.sessionsPath !== 'string') {
+        return res.status(400).json({ success: false, message: 'sessionsPath must be a string' });
+      }
+      config.sessionsPath = updates.sessionsPath;
+    }
     if (updates.alerts) {
       config.alerts = { ...config.alerts, ...updates.alerts };
       alertConfig.enabled = updates.alerts.enabled ?? alertConfig.enabled;
@@ -41,6 +57,7 @@ router.post('/', express.json(), (req, res) => {
     if (updates.detection) {
       config.detection = { ...config.detection, ...updates.detection };
     }
+
     const saved = saveConfig(config);
     if (saved) {
       res.json({

@@ -1,12 +1,9 @@
+/**
+ * Version and update check route.
+ */
+
 import { Router } from 'express';
-import { readFileSync } from 'fs';
-import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
-const pkg = JSON.parse(readFileSync(join(__dirname, '..', '..', 'package.json'), 'utf-8'));
+import { pkg } from '../lib/pkg.js';
 
 let updateCache = { latest: null, checkedAt: null };
 
@@ -16,7 +13,12 @@ async function checkForUpdate() {
     return updateCache;
   }
   try {
-    const res = await fetch('https://registry.npmjs.org/@jaydenbeard/clawguard/latest');
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
+    const res = await fetch('https://registry.npmjs.org/@jaydenbeard/clawguard/latest', {
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
     if (res.ok) {
       const data = await res.json();
       updateCache = {
@@ -27,7 +29,7 @@ async function checkForUpdate() {
       };
     }
   } catch {
-    // Offline or registry error
+    // Offline or registry error — keep stale cache
   }
   return { current: pkg.version, ...updateCache };
 }

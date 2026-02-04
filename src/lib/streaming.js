@@ -15,14 +15,21 @@ import {
   setStreamBuffer,
 } from './state.js';
 
+let flushInFlight = false;
+
 /**
  * Flush stream buffer to the configured external endpoint.
+ * Guarded against concurrent execution.
  */
 export async function flushStreamBuffer() {
+  if (flushInFlight) return;
+
   const streamBuffer = getStreamBuffer();
   if (!streamingConfig.enabled || !streamingConfig.endpoint || streamBuffer.length === 0) {
     return;
   }
+
+  flushInFlight = true;
 
   const batch = [...streamBuffer];
   setStreamBuffer([]);
@@ -63,6 +70,8 @@ export async function flushStreamBuffer() {
     streamingStats.totalFailed += batch.length;
     streamingStats.lastError = error.message;
     console.error(`❌ Stream failed: ${error.message}`);
+  } finally {
+    flushInFlight = false;
   }
 }
 

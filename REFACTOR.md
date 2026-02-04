@@ -128,4 +128,4 @@ These need to be accessible across modules:
 4. Write comprehensive tests for all modules
 5. Verify all tests pass
 6. Swap server-new.js → server.js
-7. Delete old file
+7. Archive old file (retain as server-old.js for reference)

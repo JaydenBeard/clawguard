@@ -4,9 +4,9 @@ import { createServer } from 'http';
 import { watch } from 'chokidar';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
-import { readFileSync } from 'fs';
 
 import { clients, PORT, SESSIONS_DIR, config, alertConfig, streamingConfig } from './lib/state.js';
+import { pkg } from './lib/pkg.js';
 import { processNewLogEntries, startStreamingInterval } from './lib/streaming.js';
 
 // Route modules
@@ -22,7 +22,6 @@ import versionRouter from './routes/version.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-const pkg = JSON.parse(readFileSync(join(__dirname, '..', 'package.json'), 'utf-8'));
 
 const app = express();
 const server = createServer(app);
