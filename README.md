@@ -9,23 +9,27 @@ Activity monitor and security dashboard for [OpenClaw](https://github.com/opencl
 ```bash
 # Via npm (recommended)
 npm install -g @jaydenbeard/clawguard
-clawguard start
+clawguard install
 
 # Or clone manually
 git clone https://github.com/JaydenBeard/clawguard.git
 cd clawguard && npm install && npm start
 ```
 
+`clawguard install` sets up ClawGuard as a background service that auto-starts on login and survives terminal close. Works on macOS, Linux, and Windows.
+
 After install, open http://localhost:3847
 
 ## Commands
 
 ```bash
-clawguard           # Start dashboard (foreground)
-clawguard start     # Start in background
-clawguard stop      # Stop background process
-clawguard status    # Check if running
-clawguard restart   # Restart service
+clawguard           # Start in background (default)
+clawguard start -f  # Start in foreground (attached to terminal)
+clawguard stop      # Stop the running instance
+clawguard status    # Check if running + auto-start status
+clawguard restart   # Restart the service
+clawguard install   # Install as auto-start service (survives reboot)
+clawguard uninstall # Remove auto-start service
 clawguard update    # Check for and install updates
 clawguard version   # Show current version
 ```
