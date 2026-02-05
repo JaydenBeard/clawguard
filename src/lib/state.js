@@ -46,9 +46,9 @@ export const clients = new Set();
 export const PORT = process.env.PORT || config.port || 3847;
 // Support both single path (SESSIONS_DIR for backwards compat) and multiple paths (SESSIONS_DIRS)
 export const SESSIONS_DIR = process.env.SESSIONS_DIR || config.sessionsPath;
-export const SESSIONS_DIRS = process.env.SESSIONS_DIR 
-  ? [process.env.SESSIONS_DIR] 
-  : (config.sessionsPaths || [config.sessionsPath]);
+export const SESSIONS_DIRS = process.env.SESSIONS_DIR
+  ? [process.env.SESSIONS_DIR]
+  : config.sessionsPaths || [config.sessionsPath];
 export const SEQUENCE_WINDOW_MS = (config.detection?.sequenceWindowMinutes || 5) * 60 * 1000;
 
 // streamBuffer is a let — provide getter/setter helpers so other modules

@@ -64,13 +64,13 @@ function detectSessionsPath() {
  */
 function discoverAgentPaths(basePath) {
   const paths = [];
-  
+
   try {
     const expanded = basePath.startsWith('~') ? basePath.replace('~', homedir()) : basePath;
-    
+
     // Check if it's an agents directory (contains subdirs with sessions/)
     const entries = readdirSync(expanded, { withFileTypes: true });
-    
+
     for (const entry of entries) {
       if (entry.isDirectory()) {
         const sessionsPath = join(expanded, entry.name, 'sessions');
@@ -82,7 +82,7 @@ function discoverAgentPaths(basePath) {
   } catch (error) {
     console.error(`Failed to discover agents in ${basePath}:`, error.message);
   }
-  
+
   return paths;
 }
 
@@ -200,14 +200,14 @@ export function loadConfig() {
 
   // 1. If sessionsPaths array is explicitly set, use it
   if (Array.isArray(config.sessionsPaths) && config.sessionsPaths.length > 0) {
-    sessionsPaths = config.sessionsPaths.map(p => 
-      p.startsWith('~') ? p.replace('~', homedir()) : p
+    sessionsPaths = config.sessionsPaths.map((p) =>
+      p.startsWith('~') ? p.replace('~', homedir()) : p,
     );
   }
   // 2. If agentsBasePath is set, discover all agents under it
   else if (config.agentsBasePath) {
-    const basePath = config.agentsBasePath.startsWith('~') 
-      ? config.agentsBasePath.replace('~', homedir()) 
+    const basePath = config.agentsBasePath.startsWith('~')
+      ? config.agentsBasePath.replace('~', homedir())
       : config.agentsBasePath;
     sessionsPaths = discoverAgentPaths(basePath);
   }
@@ -217,8 +217,8 @@ export function loadConfig() {
   }
   // 4. Otherwise use the single sessionsPath
   else {
-    const singlePath = config.sessionsPath.startsWith('~') 
-      ? config.sessionsPath.replace('~', homedir()) 
+    const singlePath = config.sessionsPath.startsWith('~')
+      ? config.sessionsPath.replace('~', homedir())
       : config.sessionsPath;
     sessionsPaths = [singlePath];
   }

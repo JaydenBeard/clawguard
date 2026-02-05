@@ -5,7 +5,15 @@ import { watch } from 'chokidar';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 
-import { clients, PORT, SESSIONS_DIR, SESSIONS_DIRS, config, alertConfig, streamingConfig } from './lib/state.js';
+import {
+  clients,
+  PORT,
+  SESSIONS_DIR,
+  SESSIONS_DIRS,
+  config,
+  alertConfig,
+  streamingConfig,
+} from './lib/state.js';
 import { pkg } from './lib/pkg.js';
 import { processNewLogEntries, startStreamingInterval } from './lib/streaming.js';
 

@@ -40,7 +40,8 @@ export function listSessions(sessionsDirs = getSessionsDir()) {
       // Extract agent name from path (e.g., ~/.openclaw/agents/main/sessions -> main)
       const pathParts = sessionsDir.split('/');
       const agentsIdx = pathParts.indexOf('agents');
-      const agentName = agentsIdx >= 0 && pathParts[agentsIdx + 1] ? pathParts[agentsIdx + 1] : null;
+      const agentName =
+        agentsIdx >= 0 && pathParts[agentsIdx + 1] ? pathParts[agentsIdx + 1] : null;
 
       const files = readdirSync(sessionsDir)
         .filter((f) => f.endsWith('.jsonl') && !f.includes('.deleted.'))
@@ -58,7 +59,7 @@ export function listSessions(sessionsDirs = getSessionsDir()) {
             sessionsDir,
           };
         });
-      
+
       allFiles.push(...files);
     } catch (error) {
       console.error(`Error listing sessions in ${sessionsDir}:`, error.message);
@@ -210,7 +211,7 @@ export function getAllActivity(sessionsDirs = getSessionsDir(), limit = 1000) {
     if (session) {
       const activity = extractActivity(session);
       // Add agent info to each activity
-      const enrichedActivity = activity.map(a => ({
+      const enrichedActivity = activity.map((a) => ({
         ...a,
         agent: sessionInfo.agent,
       }));
